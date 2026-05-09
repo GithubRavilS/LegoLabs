@@ -1,0 +1,1898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="title">Crypto Portfolio Builder - Investment Simulator</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #111;
+    }
+
+    .container { max-width: 1400px; margin: 0 auto; }
+    .container, .main-content, .charts-section, .metrics-section {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .header { text-align: center; color: #fff; margin-bottom: 40px; }
+    .header h1 { font-size: 2.5em; margin-bottom: 10px; font-weight: 700; }
+    .header p { font-size: 1.1em; opacity: 0.9; }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .main-content > * {
+      min-width: 0;
+    }
+
+    .control-panel {
+      background: #fff;
+      border-radius: 15px;
+      padding: 30px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      height: fit-content;
+      position: sticky;
+      top: 20px;
+    }
+
+    .control-group { margin-bottom: 25px; }
+    .control-group label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #333;
+      font-size: 0.95em;
+    }
+
+    .slider-container { position: relative; }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(to right, #667eea, #764ba2);
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #667eea;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #667eea;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+    }
+
+    /* editable number "pill" under each slider */
+    .slider-value {
+      display: block;
+      background: #f0f0f0;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-weight: 800;
+      color: #667eea;
+      margin-top: 8px;
+      font-size: 0.98em;
+      width: 100%;
+      border: none;
+      outline: none;
+      text-align: center;
+    }
+
+    .slider-value:focus {
+      outline: 2px solid rgba(102, 126, 234, 0.45);
+      outline-offset: 2px;
+    }
+
+    select {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #eee;
+      border-radius: 8px;
+      font-size: 1em;
+      cursor: pointer;
+      background: #fff;
+      color: #333;
+    }
+
+    select:focus { outline: none; border-color: #667eea; }
+
+    .strategy-description {
+      margin-top: 10px;
+      background: #f8f9fb;
+      border: 1px solid #eee;
+      border-radius: 12px;
+      padding: 12px;
+      color: #555;
+      font-size: 0.88em;
+      line-height: 1.35;
+      white-space: pre-line;
+    }
+
+    .leverage-box {
+      background: #f8f9fb;
+      border: 1px solid #eee;
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .leverage-row { display: flex; gap: 10px; align-items: flex-start; }
+    .leverage-row input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+      accent-color: #667eea;
+    }
+    .leverage-title { font-weight: 900; color: #333; }
+    .leverage-hint { margin-top: 6px; font-size: 0.85em; color: #666; line-height: 1.35; }
+
+    .charts-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 30px;
+      align-items: start;
+    }
+    .charts-section > * {
+      min-width: 0;
+    }
+
+    .wide-chart { grid-column: 1 / -1; }
+
+    .chart-card {
+      background: #fff;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+      height: fit-content;
+    }
+
+    canvas {
+      display: block;
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+
+    .chart-title {
+      font-size: 1.2em;
+      font-weight: 650;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    .tall-canvas {
+      height: 420px !important;
+    }
+    .breakdown-canvas {
+      height: 360px !important;
+    }
+    .stress-card {
+      background: #fff;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      margin-top: 24px;
+      display: none;
+    }
+    .stress-card.visible { display: block; }
+    .stress-summary { margin-top: 10px; color: #4a4a4a; line-height: 1.45; font-size: 0.92em; }
+    .stress-liquidation {
+      margin-top: 12px;
+      border: 1px solid #ececf4;
+      border-radius: 12px;
+      padding: 12px;
+      background: #fbfbfe;
+    }
+    .stress-liquidation-label {
+      font-size: 0.82em;
+      color: #636373;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .stress-liquidation-value {
+      margin-top: 4px;
+      font-size: 1.8em;
+      font-weight: 900;
+      color: #667eea;
+      line-height: 1.15;
+    }
+    .stress-controls {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: minmax(180px, 250px) auto;
+      gap: 12px;
+      align-items: end;
+    }
+    .stress-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+      font-size: 0.9em;
+    }
+    .stress-table th, .stress-table td {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 1px solid #ececf4;
+    }
+    .stress-table th {
+      color: #5b5b66;
+      font-weight: 700;
+      font-size: 0.84em;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .stress-safe { color: #0a9d77; font-weight: 700; }
+    .stress-warn { color: #d38800; font-weight: 700; }
+    .stress-risk { color: #d13f55; font-weight: 800; }
+
+    .metrics-section {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+    }
+    .metrics-section > * {
+      min-width: 0;
+    }
+
+    .metric-card {
+      background: #fff;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    .metric-label {
+      font-size: 0.9em;
+      color: #999;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .metric-value { font-size: 2em; font-weight: 750; color: #667eea; }
+    .metric-sublabel { font-size: 0.8em; color: #ccc; margin-top: 8px; }
+    .guide-card {
+      background: #fff;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      margin-top: 24px;
+      overflow: hidden;
+    }
+    .allocation-card {
+      background: #fff;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      margin-top: 24px;
+      overflow: hidden;
+    }
+    .allocation-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 12px;
+    }
+    .allocation-block {
+      border: 1px solid #ececf4;
+      border-radius: 10px;
+      padding: 12px;
+      min-height: 100px;
+    }
+    .allocation-block.is-hidden {
+      display: none;
+    }
+    .allocation-amount {
+      margin: 0 0 10px;
+      font-size: 1.45em;
+      font-weight: 900;
+      color: #667eea;
+      letter-spacing: 0.2px;
+    }
+    .allocation-block h4 {
+      margin: 0 0 8px;
+      font-size: 0.95em;
+      color: #333;
+    }
+    .pool-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .pool-list li {
+      font-size: 0.85em;
+      line-height: 1.35;
+      color: #3d3d48;
+      border-top: 1px dashed #ececf4;
+      padding-top: 8px;
+    }
+    .pool-list li:first-child {
+      border-top: none;
+      padding-top: 0;
+    }
+    .pool-link {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 700;
+    }
+    .pool-link:hover { text-decoration: underline; }
+    .guide-title { font-size: 1.1em; font-weight: 700; color: #333; margin-bottom: 10px; }
+    .guide-summary { font-size: 0.95em; color: #4c4c4c; margin-bottom: 12px; line-height: 1.45; }
+    .guide-steps { padding-left: 18px; color: #444; line-height: 1.5; }
+
+    .reset-btn {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 1em;
+      margin-top: 20px;
+      transition: transform 0.2s;
+    }
+
+    .reset-btn:hover { transform: translateY(-2px); }
+
+    @media (max-width: 1024px) {
+      .main-content { grid-template-columns: 1fr; }
+      .control-panel { position: static; }
+      .charts-section { grid-template-columns: 1fr; }
+      .wide-chart { grid-column: auto; }
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 12px;
+      }
+
+      .container {
+        max-width: 100%;
+      }
+
+      .header {
+        margin-bottom: 20px;
+      }
+
+      .header h1 {
+        font-size: 1.45rem;
+        line-height: 1.2;
+      }
+
+      .header p {
+        font-size: 0.95rem;
+      }
+
+      .main-content {
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .control-panel,
+      .chart-card,
+      .metric-card,
+      .guide-card,
+      .allocation-card {
+        padding: 14px;
+        border-radius: 12px;
+      }
+
+      .chart-title {
+        font-size: 1rem;
+        margin-bottom: 12px;
+      }
+
+      .charts-section {
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .metrics-section {
+        gap: 12px;
+        margin-top: 12px !important;
+      }
+
+      .metric-label {
+        font-size: 0.78rem;
+        letter-spacing: 0.35px;
+      }
+
+      .metric-value {
+        font-size: 1.5rem;
+        line-height: 1.2;
+        word-break: break-word;
+      }
+
+      .metric-sublabel {
+        font-size: 0.72rem;
+      }
+
+      .slider-value {
+        font-size: 0.92rem;
+        padding: 7px 10px;
+      }
+
+      .leverage-hint,
+      .strategy-description,
+      .guide-summary,
+      .guide-steps {
+        font-size: 0.82rem;
+      }
+
+      .guide-steps {
+        padding-left: 16px;
+      }
+
+      .tall-canvas {
+        height: 300px !important;
+      }
+
+      .breakdown-canvas {
+        height: 260px !important;
+      }
+      .stress-card { padding: 14px; }
+      .stress-controls { grid-template-columns: 1fr; }
+      .stress-table { font-size: 0.82rem; }
+
+      .lang-switcher {
+        top: 10px;
+        right: 10px;
+        padding: 3px;
+      }
+
+      .lang-switcher button {
+        font-size: 11px;
+        padding: 5px 10px;
+      }
+    }
+
+    @media (max-width: 420px) {
+      body {
+        padding: 10px;
+      }
+
+      .header h1 {
+        font-size: 1.28rem;
+      }
+
+      .header p {
+        font-size: 0.88rem;
+      }
+
+      .control-panel,
+      .chart-card,
+      .metric-card,
+      .guide-card,
+      .allocation-card {
+        padding: 12px;
+      }
+
+      .chart-title {
+        font-size: 0.92rem;
+      }
+
+      .metric-value {
+        font-size: 1.35rem;
+      }
+      .allocation-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .tall-canvas {
+        height: 280px !important;
+      }
+
+      .breakdown-canvas {
+        height: 235px !important;
+      }
+
+      .reset-btn {
+        padding: 10px;
+        font-size: 0.92rem;
+      }
+    }
+
+    .lang-switcher {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 100;
+      display: flex;
+      gap: 2px;
+      background: rgba(255,255,255,0.95);
+      border-radius: 999px;
+      padding: 4px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+
+    .lang-switcher button {
+      font-size: 13px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border: none;
+      border-radius: 999px;
+      background: transparent;
+      color: #666;
+      cursor: pointer;
+      transition: color 0.2s, background 0.2s;
+    }
+
+    .lang-switcher button:hover { color: #333; }
+    .lang-switcher button.active {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="lang-switcher" role="group" aria-label="Language">
+    <button type="button" class="lang-btn active" data-lang="en">EN</button>
+    <button type="button" class="lang-btn" data-lang="ru">RU</button>
+  </div>
+
+  <div class="container">
+    <div class="header">
+      <h1 data-i18n="heading">💰 Crypto Portfolio Builder</h1>
+      <p data-i18n="subtitle">Interactive Investment Simulator - See Your Wealth Grow</p>
+    </div>
+
+    <div class="main-content">
+      <div class="control-panel">
+        <h2 style="margin-bottom: 25px; color: #333;" data-i18n="parameters">Parameters</h2>
+
+        <div class="control-group">
+          <label data-i18n="initialCapital">Initial Capital ($)</label>
+          <div class="slider-container">
+            <input type="range" id="initialCapital" min="1000" max="1000000" step="1000" value="10000">
+            <input class="slider-value" type="number" id="initialCapitalDisplay" min="1000" max="1000000" step="1000" value="10000" />
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label data-i18n="monthlyInvestment">Monthly Investment ($)</label>
+          <div class="slider-container">
+            <input type="range" id="monthlyInvestment" min="0" max="50000" step="100" value="500">
+            <input class="slider-value" type="number" id="monthlyInvestmentDisplay" min="0" max="50000" step="100" value="500" />
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label data-i18n="assetAllocation">Asset Allocation (%)</label>
+          <div class="slider-container">
+            <input type="range" id="assetAllocation" min="0" max="100" step="5" value="60">
+            <input class="slider-value" type="number" id="assetAllocationDisplay" min="0" max="100" step="5" value="60" />
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label data-i18n="strategyType">Strategy Type</label>
+          <select id="strategyType">
+            <option value="low" data-i18n="optionLow">🛡️ Low Risk</option>
+            <option value="medium" selected data-i18n="optionMedium">⚖️ Medium Risk</option>
+            <option value="high" data-i18n="optionHigh">🚀 High Risk</option>
+          </select>
+          <div class="strategy-description" id="strategyDescription"></div>
+        </div>
+
+        <div class="control-group">
+          <label data-i18n="timeHorizon">Time Horizon (Years)</label>
+          <div class="slider-container">
+            <input type="range" id="timeHorizon" min="1" max="50" step="1" value="10">
+            <input class="slider-value" type="number" id="timeHorizonDisplay" min="1" max="50" step="1" value="10" />
+          </div>
+        </div>
+
+        <div class="control-group" style="margin-bottom: 8px;">
+          <div class="leverage-box">
+            <div class="leverage-row">
+              <input type="checkbox" id="useLeverage" />
+              <div>
+                <div class="leverage-title" data-i18n="leverageLabel">Use financial leverage (BTC collateral)</div>
+                <div class="leverage-hint" data-i18n="leverageHint">
+                  If enabled, 40% of the asset allocation can be financed with a loan under BTC collateral.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="reset-btn" id="btnReset" data-i18n="reset" onclick="resetParameters()">↻ Reset</button>
+      </div>
+
+      <div>
+        <div class="charts-section">
+          <div class="chart-card">
+            <div class="chart-title" data-i18n="chartPortfolioGrowth">Portfolio Growth</div>
+            <canvas id="portfolioChart" class="tall-canvas"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title" data-i18n="chartComposition">Portfolio Composition (Start)</div>
+            <canvas id="compositionChart"></canvas>
+          </div>
+        </div>
+
+        <div class="charts-section">
+          <div class="chart-card">
+            <div class="chart-title" data-i18n="chartIncome">Strategy Income by Year</div>
+            <canvas id="incomeChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title" data-i18n="chartMonthlyIncome">Monthly Passive Income</div>
+            <canvas id="monthlyIncomeChart"></canvas>
+          </div>
+        </div>
+
+        <div class="charts-section" style="margin-bottom: 0;">
+          <div class="chart-card wide-chart">
+            <div class="chart-title" data-i18n="chartBreakdown">Portfolio Growth Breakdown</div>
+            <canvas id="breakdownChart" class="breakdown-canvas"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="metrics-section" style="margin-top: 30px;">
+      <div class="metric-card">
+        <div class="metric-label" data-i18n="metricTotalValue">Total Portfolio Value</div>
+        <div class="metric-value" id="totalPortfolio">$0</div>
+        <div class="metric-sublabel" data-i18n="sublabelEndOfPeriod">at end of period</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label" data-i18n="metricCapitalGrowth">Capital Growth</div>
+        <div class="metric-value" id="capitalGrowth">$0</div>
+        <div class="metric-sublabel" data-i18n="sublabelCapitalGrowth">growth vs total invested</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label" data-i18n="metricAvgMonthlyIncome">Avg. Monthly Passive Income</div>
+        <div class="metric-value" id="monthlyIncomeAvg">$0</div>
+        <div class="metric-sublabel" data-i18n="sublabelAvgMonthlyIncome">average over the whole period</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label" data-i18n="metricTotalReturn">Return</div>
+        <div class="metric-value" id="totalReturn">0%</div>
+        <div class="metric-sublabel" data-i18n="sublabelTotalReturn">annualized (total)</div>
+      </div>
+    </div>
+
+    <div class="guide-card">
+      <div class="guide-title" data-i18n="guideTitle">Execution Plan by Current Settings</div>
+      <div class="guide-summary" id="strategyGuideSummary"></div>
+      <ol class="guide-steps" id="strategyGuideSteps"></ol>
+    </div>
+
+    <div class="allocation-card">
+      <div class="guide-title" data-i18n="allocTitle">Recommended Positions from DeFi Labs Navigator</div>
+      <div class="guide-summary" id="allocationSummary"></div>
+      <div class="allocation-grid">
+        <div class="allocation-block" id="ethAllocBlock">
+          <h4 data-i18n="allocEthTitle">Ethereum Pools (top-3 by APY)</h4>
+          <div class="allocation-amount" id="ethAllocAmount">$0</div>
+          <ul id="ethereumPoolsList" class="pool-list"></ul>
+        </div>
+        <div class="allocation-block" id="stableAllocBlock">
+          <h4 data-i18n="allocStableTitle">Stablecoin Strategies (top-3 by APY)</h4>
+          <div class="allocation-amount" id="stableAllocAmount">$0</div>
+          <ul id="stablePoolsList" class="pool-list"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="stress-card" id="stressCard">
+      <div class="guide-title" data-i18n="stressTitle">Leverage Stress Test</div>
+      <div class="stress-summary" data-i18n="stressSummary">Estimates liquidation zone for BTC-collateralized leverage and shows reserve top-up capacity under market drawdowns.</div>
+      <div class="stress-controls">
+        <div class="control-group" style="margin-bottom:0;">
+          <label for="btcSpotPrice" data-i18n="btcSpotLabel">BTC spot price ($)</label>
+          <input class="slider-value" type="number" id="btcSpotPrice" min="1000" step="10" value="80000" />
+        </div>
+        <button class="reset-btn" id="refreshBtcBtn" data-i18n="refreshPrice" style="margin-top:0; max-width: 220px;">Refresh price</button>
+      </div>
+      <div class="stress-liquidation">
+        <div class="stress-liquidation-label" data-i18n="stressLiqPrice">Estimated liquidation BTC price</div>
+        <div class="stress-liquidation-value" id="stressLiquidationValue">$0</div>
+      </div>
+      <div class="stress-summary" id="stressHeadline"></div>
+      <table class="stress-table">
+        <thead>
+          <tr>
+            <th data-i18n="stressColScenario">Scenario</th>
+            <th data-i18n="stressColBtc">BTC price</th>
+            <th data-i18n="stressColPosition">Position value</th>
+            <th data-i18n="stressColHealth">Collateral ratio</th>
+            <th data-i18n="stressColBuffer">Buffer to liquidation</th>
+            <th data-i18n="stressColStatus">Status</th>
+          </tr>
+        </thead>
+        <tbody id="stressTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // === i18n: EN / RU (no FR) ===
+    const translations = {
+      en: {
+        title: 'Crypto Portfolio Builder - Investment Simulator',
+        heading: '💰 Crypto Portfolio Builder',
+        subtitle: 'Interactive Investment Simulator - See Your Wealth Grow',
+        parameters: 'Parameters',
+        initialCapital: 'Initial Capital ($)',
+        monthlyInvestment: 'Monthly Investment ($)',
+        assetAllocation: 'BTC Asset Share (%)',
+        strategyType: 'Strategy Type',
+        optionLow: '🛡️ Low Risk',
+        optionMedium: '⚖️ Medium Risk',
+        optionHigh: '🚀 High Risk',
+        timeHorizon: 'Time Horizon (Years)',
+        reset: '↻ Reset',
+
+        leverageLabel: 'Use financial leverage (BTC collateral)',
+        leverageHint: 'If enabled, 40% of the asset allocation can be financed with a loan under BTC collateral.',
+
+        strategyDescLow: 'Lower volatility.\nAll stable allocation goes to stablecoin pools.\nReturn profile is steadier and softer.',
+        strategyDescMedium: 'Balanced risk.\nStable allocation is split 50/50 between stable and asset pools.\nBalanced return profile.',
+        strategyDescHigh: 'Maximum growth drive.\nAll stable allocation goes to asset-backed pools.\nMost aggressive return profile.',
+
+        chartPortfolioGrowth: 'Portfolio Growth',
+        chartComposition: 'Portfolio Composition (Start)',
+        chartIncome: 'Strategy Income by Year',
+        chartIncomeMonthly: 'Strategy Income by Month',
+        chartMonthlyIncome: 'Monthly Passive Income',
+        chartBreakdown: 'Portfolio Growth Breakdown',
+        guideTitle: 'Execution Plan by Current Settings',
+
+        metricTotalValue: 'Total Portfolio Value',
+        sublabelEndOfPeriod: 'at end of period',
+        metricCapitalGrowth: 'Capital Growth',
+        sublabelCapitalGrowth: 'growth vs total invested',
+        metricAvgMonthlyIncome: 'Avg. Monthly Passive Income',
+        sublabelAvgMonthlyIncome: 'average over the whole period',
+        metricTotalReturn: 'Return',
+        sublabelTotalReturn: 'annualized (total)',
+
+        labelTotalPortfolio: 'Total Portfolio',
+        labelCashBaseline: 'Cash Baseline',
+        labelAssets: 'Assets',
+        labelStables: 'Stablecoins',
+        labelStrategyIncome: 'Strategy Income',
+        labelStrategyEffect: 'Strategy effect',
+        labelLeverageEffect: 'Leverage effect',
+        labelReinvestEffect: 'Reinvestment effect',
+        labelReinvest: 'Reinvest',
+        labelMonthlyPassiveIncome: 'Monthly Passive Income',
+        stressTitle: 'Leverage Stress Test',
+        stressSummary: 'Estimates liquidation zone for BTC-collateralized leverage and shows reserve top-up capacity under market drawdowns.',
+        btcSpotLabel: 'BTC spot price ($)',
+        refreshPrice: 'Refresh price',
+        stressColScenario: 'Scenario',
+        stressColBtc: 'BTC price',
+        stressColPosition: 'Position value',
+        stressColHealth: 'Collateral ratio',
+        stressColBuffer: 'Buffer to liquidation',
+        stressColStatus: 'Status',
+        stressStatusSafe: 'Safe',
+        stressStatusWarning: 'Warning',
+        stressStatusRisk: 'Liquidation risk',
+        stressLiqPrice: 'Estimated liquidation BTC price',
+        stressDistance: 'Distance from spot',
+        stressNoLiq: 'No liquidation even at -100% BTC in this simplified model',
+        stressNoLiqValue: 'Unreachable',
+        allocTitle: 'Recommended Positions from DeFi Labs Navigator',
+        allocSummary: 'Capital split from initial deposit by selected risk profile:',
+        allocEthTitle: 'Ethereum Pools (top-3 by APY)',
+        allocStableTitle: 'Stablecoin Strategies (top-3 by APY)',
+        allocEthAmount: 'To Ethereum pools:',
+        allocStableAmount: 'To stable strategies:',
+        allocNoPart: 'No allocation for this bucket in current strategy.',
+        allocPerPosition: 'Suggested amount per position',
+        allocSourceFallback: 'Live feed temporarily unavailable. Showing fallback examples.'
+      },
+      ru: {
+        title: 'Криптопортфель — Симулятор инвестиций',
+        heading: '💰 Криптопортфель',
+        subtitle: 'Интерактивный симулятор — смотрите, как растёт капитал',
+        parameters: 'Параметры',
+        initialCapital: 'Начальный капитал ($)',
+        monthlyInvestment: 'Ежемесячное пополнение ($)',
+        assetAllocation: 'Доля актива (BTC, %)',
+        strategyType: 'Тип стратегии',
+        optionLow: '🛡️ Низкий риск',
+        optionMedium: '⚖️ Средний риск',
+        optionHigh: '🚀 Высокий риск',
+        timeHorizon: 'Горизонт (лет)',
+        reset: '↻ Сброс',
+
+        leverageLabel: 'Использовать финансовое плечо (BTC-коллатерал)',
+        leverageHint: 'Если включено, 40% доли активов можно профинансировать кредитом под залог BTC.',
+
+        strategyDescLow: 'Меньше волатильности.\nВся стабильная часть идёт в стейблкоин-пулы.\nПрофиль доходности более ровный.',
+        strategyDescMedium: 'Умеренный риск.\nСтабильная часть делится 50/50 между стейбл- и asset-пулами.\nСбалансированный профиль доходности.',
+        strategyDescHigh: 'Максимальный драйв роста.\nВся стабильная часть идёт в пулы с волатильными активами.\nСамый агрессивный профиль доходности.',
+
+        chartPortfolioGrowth: 'Рост портфеля',
+        chartComposition: 'Состав портфеля (в начале периода)',
+        chartIncome: 'Доход стратегии по годам',
+        chartIncomeMonthly: 'Доход стратегии по месяцам',
+        chartMonthlyIncome: 'Ежемесячный пассивный доход',
+        chartBreakdown: 'Разбор роста портфеля',
+        guideTitle: 'Пошаговый план по текущим настройкам',
+
+        metricTotalValue: 'Общая стоимость портфеля',
+        sublabelEndOfPeriod: 'на конец периода',
+        metricCapitalGrowth: 'Прирост капитала',
+        sublabelCapitalGrowth: 'рост относительно общей вложенной суммы',
+        metricAvgMonthlyIncome: 'Средний пассивный доход в месяц',
+        sublabelAvgMonthlyIncome: 'среднее за весь период',
+        metricTotalReturn: 'Доходность',
+        sublabelTotalReturn: 'годовая (итого)',
+
+        labelTotalPortfolio: 'Весь портфель',
+        labelCashBaseline: 'Без стратегии',
+        labelAssets: 'Активы',
+        labelStables: 'Стейблкоины',
+        labelStrategyIncome: 'Доход стратегии',
+        labelStrategyEffect: 'Эффект стратегии',
+        labelLeverageEffect: 'Эффект плеча',
+        labelReinvestEffect: 'Эффект реинвеста',
+        labelReinvest: 'Реинвестирование',
+        labelMonthlyPassiveIncome: 'Пассивный доход в месяц',
+        stressTitle: 'Стресс-тест плеча',
+        stressSummary: 'Оценка зоны ликвидации для плеча под BTC-залог и сценарии с учётом докапитализации из внешних пулов при просадке рынка.',
+        btcSpotLabel: 'Текущая цена BTC ($)',
+        refreshPrice: 'Обновить цену',
+        stressColScenario: 'Сценарий',
+        stressColBtc: 'Цена BTC',
+        stressColPosition: 'Стоимость позиции',
+        stressColHealth: 'Коэффициент залога',
+        stressColBuffer: 'Запас до ликвидации',
+        stressColStatus: 'Статус',
+        stressStatusSafe: 'Нормально',
+        stressStatusWarning: 'Риск растет',
+        stressStatusRisk: 'Риск ликвидации',
+        stressLiqPrice: 'Оценочная цена ликвидации BTC',
+        stressDistance: 'Дистанция от спота',
+        stressNoLiq: 'В этой упрощенной модели ликвидация не наступает даже при -100% BTC',
+        stressNoLiqValue: 'Недостижимо',
+        allocTitle: 'Рекомендуемые позиции из DeFi Labs Navigator',
+        allocSummary: 'Распределение капитала из начального депозита по текущему рисковому профилю:',
+        allocEthTitle: 'Пулы Ethereum (топ-3 по APY)',
+        allocStableTitle: 'Стейблкоин-стратегии (топ-3 по APY)',
+        allocEthAmount: 'Сумма в Ethereum-пулы:',
+        allocStableAmount: 'Сумма в стейбл-стратегии:',
+        allocNoPart: 'В текущей стратегии на этот блок сумма не выделяется.',
+        allocPerPosition: 'Рекомендованная сумма на позицию',
+        allocSourceFallback: 'Живая лента временно недоступна. Показаны резервные примеры.'
+      }
+    };
+
+    let currentLang = localStorage.getItem('portfolio-lang') || 'en';
+    function t(key) {
+      return (translations[currentLang] && translations[currentLang][key]) || translations.en[key] || key;
+    }
+
+    function formatCurrency(value) {
+      const locale = currentLang === 'ru' ? 'ru-RU' : 'en-US';
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(value);
+    }
+
+    function formatCurrencyCompact(value) {
+      const locale = currentLang === 'ru' ? 'ru-RU' : 'en-US';
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: 'USD',
+        notation: 'compact',
+        compactDisplay: 'short',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 1
+      }).format(value);
+    }
+
+    function formatPercent(value, digits = 1) {
+      const locale = currentLang === 'ru' ? 'ru-RU' : 'en-US';
+      return new Intl.NumberFormat(locale, {
+        style: 'percent',
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits
+      }).format(value);
+    }
+
+    function parseApy(raw) {
+      const n = Number(raw);
+      if (!Number.isFinite(n)) return 0;
+      // Navigator API already returns APY in percent units.
+      return n;
+    }
+
+    function getTopPools(categoryId, limit = 3) {
+      const source = navigatorTools.length ? navigatorTools : fallbackNavigatorTools;
+      return source
+        .filter(item => item.categoryId === categoryId)
+        .map(item => ({
+          ...item,
+          apyNorm: parseApy(item.apy)
+        }))
+        .sort((a, b) => b.apyNorm - a.apyNorm)
+        .slice(0, limit);
+    }
+
+    function applyLanguage(lang) {
+      currentLang = lang;
+      localStorage.setItem('portfolio-lang', lang);
+      document.documentElement.lang = lang === 'ru' ? 'ru' : 'en';
+
+      document.querySelectorAll('[data-i18n]').forEach(function(el) {
+        const key = el.getAttribute('data-i18n');
+        if (!key) return;
+        el.textContent = t(key);
+        if (el.tagName === 'TITLE') document.title = t(key);
+      });
+
+      document.querySelectorAll('.lang-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
+      });
+
+      updateStrategyDescription();
+      updateDisplays();
+      updateDashboard();
+    }
+
+    document.querySelectorAll('.lang-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        applyLanguage(btn.getAttribute('data-lang'));
+      });
+    });
+
+    // Chart instances
+    let portfolioChart = null;
+    let compositionChart = null;
+    let incomeChart = null;
+    let monthlyIncomeChart = null;
+    let breakdownChart = null;
+    const NAVIGATOR_API_URL = 'https://script.google.com/macros/s/AKfycbwap2a3QP0VNx-p9cv-MbDXLuWKq0eOqNyCT8ZjwDblbXPIN0uOkV_FFPCR2ujhSlSngw/exec?project=main';
+    const fallbackNavigatorTools = [
+      { categoryId: 'ethereum', name: 'Uniswap V3', pair: 'WETH / USDC', apy: 20.7, period: '14d', link: 'https://revert.finance' },
+      { categoryId: 'ethereum', name: 'PancakeSwap V3', pair: 'WETH / USDC', apy: 26.2, period: '13d', link: 'https://cloud-ui.krystal.app' },
+      { categoryId: 'ethereum', name: 'Aerodrome', pair: 'WETH / USDC', apy: 25.7, period: '6d', link: 'https://cloud-ui.krystal.app' },
+      { categoryId: 'stables', name: 'Hyperliquid', pair: 'USDC', apy: 30.0, period: '234d', link: 'https://app.hyperliquid.xyz' },
+      { categoryId: 'stables', name: 'Pendle V2', pair: 'PT sUSDu', apy: 11.68, period: '69d', link: 'https://app.pendle.finance' },
+      { categoryId: 'stables', name: 'Uniswap V4', pair: 'GHO / USDT', apy: 5.83, period: '21d', link: 'https://revert.finance' }
+    ];
+    let navigatorTools = [];
+    let navigatorLiveLoaded = false;
+    let navigatorLoadError = false;
+
+    // Strategy parameters
+    const strategies = {
+      // assetGrowth is fixed, stable LP yield is fixed, and the last parameter is
+      // how much of the "stablecoins bucket" goes to LP-assets vs LP-stables.
+      low: { assetGrowth: 25, stableYield: 8, lpAssetsYield: 30, lpAssetShare: 0 },     // 0% of stables -> LP assets
+      medium: { assetGrowth: 25, stableYield: 8, lpAssetsYield: 30, lpAssetShare: 0.5 }, // 50% -> split
+      high: { assetGrowth: 25, stableYield: 8, lpAssetsYield: 30, lpAssetShare: 1 }      // 100% -> LP assets
+    };
+
+    const LEVERAGE_RATIO = 0.40; // borrow up to +40% on the "asset" portion
+
+    function getParameters() {
+      return {
+        initialCapital: parseFloat(document.getElementById('initialCapital').value),
+        monthlyInvestment: parseFloat(document.getElementById('monthlyInvestment').value),
+        assetAllocation: parseFloat(document.getElementById('assetAllocation').value),
+        strategyType: document.getElementById('strategyType').value,
+        timeHorizon: parseInt(document.getElementById('timeHorizon').value, 10),
+        useLeverage: document.getElementById('useLeverage').checked
+      };
+    }
+
+    function updateStrategyDescription() {
+      const params = getParameters();
+      const el = document.getElementById('strategyDescription');
+      if (!el) return;
+      if (params.strategyType === 'low') el.textContent = t('strategyDescLow');
+      else if (params.strategyType === 'medium') el.textContent = t('strategyDescMedium');
+      else el.textContent = t('strategyDescHigh');
+    }
+
+    function getStrategyShares(strategyType) {
+      const s = strategies[strategyType];
+      const lpAssetsShare = s.lpAssetShare;
+      return { lpAssetsShare, lpStableShare: 1 - lpAssetsShare };
+    }
+
+    function renderGuide(dataCompound) {
+      const params = getParameters();
+      const strategy = strategies[params.strategyType];
+      const shares = getStrategyShares(params.strategyType);
+      const guideSummary = document.getElementById('strategyGuideSummary');
+      const guideSteps = document.getElementById('strategyGuideSteps');
+      if (!guideSummary || !guideSteps) return;
+
+      const initial = params.initialCapital;
+      const assetPart = initial * (params.assetAllocation / 100);
+      const stableBase = initial * ((100 - params.assetAllocation) / 100);
+      const borrowed = params.useLeverage ? assetPart * LEVERAGE_RATIO : 0;
+      const stableTotal = stableBase + borrowed;
+      const stableToStablePools = stableTotal * shares.lpStableShare;
+      const stableToAssetPools = stableTotal * shares.lpAssetsShare;
+
+      const finalPortfolio = dataCompound.portfolioValues[dataCompound.portfolioValues.length - 1];
+      const avgMonthly = dataCompound.monthlyIncomes.reduce((a, b) => a + b, 0) / dataCompound.monthlyIncomes.length;
+      const totalContrib = dataCompound.cashBaseline[dataCompound.cashBaseline.length - 1];
+      const totalGrowthPct = totalContrib > 0 ? ((finalPortfolio - totalContrib) / totalContrib) * 100 : 0;
+
+      const s1 = currentLang === 'ru'
+        ? `Старт: ${formatCurrency(initial)}. В активы уходит ${formatCurrency(assetPart)} (${params.assetAllocation}%), в стабильную часть ${formatCurrency(stableBase)} (${(100 - params.assetAllocation)}%).`
+        : `Start with ${formatCurrency(initial)}. Allocate ${formatCurrency(assetPart)} (${params.assetAllocation}%) to assets and ${formatCurrency(stableBase)} (${100 - params.assetAllocation}%) to stable capital.`;
+      const s2 = currentLang === 'ru'
+        ? `Стабильная часть распределяется так: ${Math.round(shares.lpStableShare * 100)}% в стейблкоин-пулы (${formatCurrency(stableToStablePools)}) и ${Math.round(shares.lpAssetsShare * 100)}% в пулы с волатильными активами (${formatCurrency(stableToAssetPools)}).`
+        : `Split stable capital as follows: ${Math.round(shares.lpStableShare * 100)}% to stablecoin pools (${formatCurrency(stableToStablePools)}) and ${Math.round(shares.lpAssetsShare * 100)}% to volatile-asset pools (${formatCurrency(stableToAssetPools)}).`;
+      const s3 = currentLang === 'ru'
+        ? `Плечо: ${params.useLeverage ? 'включено' : 'выключено'}. ${params.useLeverage ? `Дополнительно получаем ${formatCurrency(borrowed)} в стейблкоинах под залог актива и распределяем их по той же схеме.` : 'Кредитная часть не используется.'}`
+        : `Leverage: ${params.useLeverage ? 'enabled' : 'disabled'}. ${params.useLeverage ? `Adds ${formatCurrency(borrowed)} in borrowed stables (against asset collateral), allocated with the same strategy split.` : 'No borrowed capital is used.'}`;
+      const s4 = currentLang === 'ru'
+        ? `Дальше — ежемесячный цикл: вносите ${formatCurrency(params.monthlyInvestment)} и реинвестируете доход. На текущих настройках модель даёт средний пассивный доход ${formatCurrency(avgMonthly)} в месяц.`
+        : `Then run the monthly cycle: add ${formatCurrency(params.monthlyInvestment)} and reinvest income. With current settings, model projects average passive income of ${formatCurrency(avgMonthly)} per month.`;
+      const s5 = currentLang === 'ru'
+        ? `Итог за ${params.timeHorizon} лет: ориентировочно ${formatCurrency(finalPortfolio)} портфельной стоимости (${totalGrowthPct.toFixed(1)}% к внесённому капиталу). Для выбора конкретных пулов используйте ваш навигатор инструментов.`
+        : `Projected result over ${params.timeHorizon} years: around ${formatCurrency(finalPortfolio)} total portfolio value (${totalGrowthPct.toFixed(1)}% vs contributed capital). Use your tools navigator to pick exact pools.`;
+      const s6 = currentLang === 'ru'
+        ? `Оценочная доходность стратегии по текущей конфигурации: ${(getExpectedAnnualRate(params) * 100).toFixed(1)}% годовых до учёта биржевых комиссий, проскальзывания и стоимости займа.`
+        : `Estimated strategy yield for current setup: ${(getExpectedAnnualRate(params) * 100).toFixed(1)}% annual before fees, slippage and borrowing cost.`;
+
+      guideSummary.textContent = currentLang === 'ru'
+        ? `Стратегия: ${params.strategyType.toUpperCase()}, активы ${params.assetAllocation}%, стабильная часть ${100 - params.assetAllocation}%, плечо ${params.useLeverage ? 'ON' : 'OFF'}.`
+        : `Strategy: ${params.strategyType.toUpperCase()}, assets ${params.assetAllocation}%, stable ${100 - params.assetAllocation}%, leverage ${params.useLeverage ? 'ON' : 'OFF'}.`;
+
+      guideSteps.innerHTML = '';
+      [s1, s2, s3, s4, s5, s6].forEach(function(step) {
+        const li = document.createElement('li');
+        li.textContent = step;
+        guideSteps.appendChild(li);
+      });
+    }
+
+    function renderRecommendedPositions() {
+      const params = getParameters();
+      const initial = params.initialCapital;
+      const assetPart = initial * (params.assetAllocation / 100);
+      const strategyCapital = initial - assetPart;
+      const shares = getStrategyShares(params.strategyType);
+
+      const toEth = strategyCapital * shares.lpAssetsShare;
+      const toStable = strategyCapital * shares.lpStableShare;
+      const showEth = toEth > 0;
+      const showStable = toStable > 0;
+
+      const ethTop = getTopPools('ethereum', 3);
+      const stableTop = getTopPools('stables', 3);
+
+      const summary = document.getElementById('allocationSummary');
+      if (summary) {
+        let text = t('allocSummary') + ' ' +
+          (currentLang === 'ru'
+            ? `В активы: ${formatCurrency(assetPart)}. В стратегии: ${formatCurrency(strategyCapital)}.`
+            : `To assets: ${formatCurrency(assetPart)}. To strategy sleeves: ${formatCurrency(strategyCapital)}.`);
+        if (navigatorLoadError) text += ' ' + t('allocSourceFallback');
+        summary.textContent = text;
+      }
+
+      const ethBlock = document.getElementById('ethAllocBlock');
+      const stableBlock = document.getElementById('stableAllocBlock');
+      if (ethBlock) ethBlock.classList.toggle('is-hidden', !showEth);
+      if (stableBlock) stableBlock.classList.toggle('is-hidden', !showStable);
+
+      const ethAmount = document.getElementById('ethAllocAmount');
+      const stableAmount = document.getElementById('stableAllocAmount');
+      if (ethAmount) ethAmount.textContent = t('allocEthAmount') + ' ' + formatCurrency(toEth);
+      if (stableAmount) stableAmount.textContent = t('allocStableAmount') + ' ' + formatCurrency(toStable);
+
+      const draw = function(targetId, rows, totalAmount) {
+        const el = document.getElementById(targetId);
+        if (!el) return;
+        el.innerHTML = '';
+        if (totalAmount <= 0 || !rows.length) {
+          const li = document.createElement('li');
+          li.textContent = t('allocNoPart');
+          el.appendChild(li);
+          return;
+        }
+        const perPos = totalAmount / rows.length;
+        rows.forEach(function(row) {
+          const li = document.createElement('li');
+          const url = row.link || '#';
+          const apyTxt = row.apyNorm.toFixed(2) + '%';
+          li.innerHTML =
+            '<a class="pool-link" href="' + url + '" target="_blank" rel="noopener noreferrer">' +
+            row.name + ' · ' + (row.pair || '') + '</a><br>' +
+            'APY: ' + apyTxt + ' · ' + t('allocPerPosition') + ': ' + formatCurrency(perPos);
+          el.appendChild(li);
+        });
+      };
+
+      if (showEth) draw('ethereumPoolsList', ethTop, toEth);
+      if (showStable) draw('stablePoolsList', stableTop, toStable);
+    }
+
+    function getExpectedAnnualRate(params) {
+      const s = strategies[params.strategyType];
+      const a = params.assetAllocation / 100;
+      const stableBase = 1 - a;
+      const borrowedStable = params.useLeverage ? a * LEVERAGE_RATIO : 0;
+      const stableTotal = stableBase + borrowedStable;
+      const lpAssetsShare = s.lpAssetShare;
+      const lpStableShare = 1 - lpAssetsShare;
+
+      const assetPart = a * (s.assetGrowth / 100);
+      const stablePoolPart = stableTotal * lpStableShare * (s.stableYield / 100);
+      const assetPoolPart = stableTotal * lpAssetsShare * (s.lpAssetsYield / 100);
+      return assetPart + stablePoolPart + assetPoolPart;
+    }
+
+    function annualToMonthlyRate(annualRate) {
+      return Math.pow(1 + annualRate, 1 / 12) - 1;
+    }
+
+    /*
+      Core period logic used for all graphs:
+      - "Simple" mode (reinvest=false): each period profit is calculated on contributed capital only.
+      - "Compound" mode (reinvest=true): each period profit is calculated on contributed capital
+        plus accumulated past profits (difference of simple vs compound is reinvest effect).
+      - Deposits are monthly. If horizon < 5 years, chart x-axis is monthly.
+        Otherwise period data is aggregated by year.
+    */
+    function calculatePortfolio(reinvest, forceUseLeverage) {
+      const params = getParameters();
+      const strategy = strategies[params.strategyType];
+      const useLeverageEffective = (forceUseLeverage === undefined ? params.useLeverage : forceUseLeverage);
+
+      const years = params.timeHorizon;
+      const monthsTotal = years * 12;
+      const displayMonthly = years < 5;
+
+      // Convert annual rate to effective monthly rate to avoid overstating compounding.
+      const assetMonthlyRate = annualToMonthlyRate(strategy.assetGrowth / 100);
+      const stableMonthlyRate = annualToMonthlyRate(strategy.stableYield / 100);
+      const lpMonthlyRate = annualToMonthlyRate(strategy.lpAssetsYield / 100);
+
+      // Monthly series (month-end points)
+      const labelsM = [];
+      const cashBaselineM = [];
+      const strategyIncomesM = [];
+      const portfolioValuesM = [];
+      const monthlyIncomesM = [];
+
+      let cumulativeProfit = 0;
+
+      for (let month = 1; month <= monthsTotal; month++) {
+        const contributedStart = params.initialCapital + params.monthlyInvestment * (month - 1);
+        const profitBase = contributedStart + (reinvest ? cumulativeProfit : 0);
+
+        const assetCapital = profitBase * (params.assetAllocation / 100);
+        const stableBase = profitBase * ((100 - params.assetAllocation) / 100);
+        // Borrowed value is added to stablecoins (BTC-collateral logic).
+        const stableBorrow = useLeverageEffective ? assetCapital * LEVERAGE_RATIO : 0;
+        const stableInvestment = stableBase + stableBorrow;
+
+        // Split stablecoins between LP-stables and LP-assets.
+        const lpAssetsShare = strategy.lpAssetShare; // 0..1
+        const stableToLpAssets = stableInvestment * lpAssetsShare;
+        const stableToLpStables = stableInvestment - stableToLpAssets;
+
+        const assetGrowthProfit = assetCapital * assetMonthlyRate;
+        const stableIncome = stableToLpStables * stableMonthlyRate;
+        const lpIncome = stableToLpAssets * lpMonthlyRate;
+
+        // Full strategy result per period = asset growth + stable pools + asset pools.
+        const income = assetGrowthProfit + stableIncome + lpIncome;
+        cumulativeProfit += income;
+
+        // End-of-month contributed capital and end-of-month total portfolio.
+        const baseline = params.initialCapital + params.monthlyInvestment * month;
+        const portfolioEnd = baseline + cumulativeProfit;
+
+        labelsM.push(month);
+        cashBaselineM.push(baseline);
+        strategyIncomesM.push(income);
+        monthlyIncomesM.push(income);
+        portfolioValuesM.push(portfolioEnd);
+      }
+
+      if (displayMonthly) {
+        return {
+          labels: labelsM,
+          cashBaseline: cashBaselineM,
+          strategyIncomes: strategyIncomesM,
+          portfolioValues: portfolioValuesM,
+          monthlyIncomes: monthlyIncomesM
+        };
+      }
+
+      // Yearly aggregation: 12 months -> one year-end point
+      const labelsY = [];
+      const cashBaselineY = [];
+      const strategyIncomesY = [];
+      const portfolioValuesY = [];
+      const monthlyIncomesY = [];
+
+      for (let year = 1; year <= years; year++) {
+        const monthEnd = year * 12;
+        const idxEnd = monthEnd - 1;
+
+        labelsY.push(year);
+        cashBaselineY.push(cashBaselineM[idxEnd]);
+        portfolioValuesY.push(portfolioValuesM[idxEnd]);
+
+        let sumIncome = 0;
+        for (let mi = (year - 1) * 12; mi < monthEnd; mi++) sumIncome += strategyIncomesM[mi];
+
+        strategyIncomesY.push(sumIncome);
+        // monthlyIncomes chart shows "monthly average" per displayed year
+        monthlyIncomesY.push(sumIncome / 12);
+      }
+
+      return {
+        labels: labelsY,
+        cashBaseline: cashBaselineY,
+        strategyIncomes: strategyIncomesY,
+        portfolioValues: portfolioValuesY,
+        monthlyIncomes: monthlyIncomesY
+      };
+    }
+
+    function updateDashboard() {
+      const params = getParameters();
+      const years = params.timeHorizon;
+      if (!years || years < 1) return;
+
+      const displayMonthly = years < 5;
+      const incomeTitleEl = document.querySelector('[data-i18n="chartIncome"]');
+      if (incomeTitleEl) incomeTitleEl.textContent = displayMonthly ? t('chartIncomeMonthly') : t('chartIncome');
+
+      const useLeverageSelected = params.useLeverage;
+      const dataCompound = calculatePortfolio(true, useLeverageSelected);
+      const dataSimple = calculatePortfolio(false, useLeverageSelected);
+      const dataSimpleNoLeverage = calculatePortfolio(false, false);
+      const dataCompoundNoLeverage = calculatePortfolio(true, false);
+
+      updatePortfolioChart(dataCompound);
+      updateCompositionChart();
+      updateIncomeChart(dataCompound);
+      updateMonthlyIncomeChart(dataCompound);
+      updateBreakdownChart(dataSimpleNoLeverage, dataSimple, dataCompoundNoLeverage, dataCompound);
+      renderStressTest();
+
+      const finalPortfolio = dataCompound.portfolioValues[dataCompound.portfolioValues.length - 1];
+      const totalContributed = dataCompound.cashBaseline[dataCompound.cashBaseline.length - 1];
+
+      const capitalGrowth = finalPortfolio - totalContributed;
+
+      const avgMonthlyIncome = dataCompound.monthlyIncomes.reduce((a, b) => a + b, 0) / dataCompound.monthlyIncomes.length;
+
+      const totalReturnPct = totalContributed > 0 ? (capitalGrowth / totalContributed) * 100 : 0;
+      const annualizedReturnPct = getExpectedAnnualRate(params) * 100;
+
+      document.getElementById('totalPortfolio').textContent = formatCurrency(finalPortfolio);
+      document.getElementById('capitalGrowth').textContent = formatCurrency(capitalGrowth);
+      document.getElementById('monthlyIncomeAvg').textContent = formatCurrency(avgMonthlyIncome);
+      document.getElementById('totalReturn').textContent =
+        annualizedReturnPct.toFixed(1) + '% (' + totalReturnPct.toFixed(0) + '%)';
+
+      renderGuide(dataCompound);
+      renderRecommendedPositions();
+    }
+
+    function updatePortfolioChart(data) {
+      const ctx = document.getElementById('portfolioChart').getContext('2d');
+      if (portfolioChart) portfolioChart.destroy();
+
+      portfolioChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.labels,
+          datasets: [
+            {
+              label: t('labelTotalPortfolio'),
+              data: data.portfolioValues,
+              borderColor: '#667eea',
+              backgroundColor: 'rgba(102, 126, 234, 0.12)',
+              borderWidth: 3,
+              tension: 0.35,
+              fill: true,
+              pointRadius: 0,
+              pointHoverRadius: 6,
+              pointBackgroundColor: '#667eea'
+            },
+            {
+              label: t('labelCashBaseline'),
+              data: data.cashBaseline,
+              borderColor: '#bdbdbd',
+              borderWidth: 2,
+              borderDash: [5, 5],
+              fill: false,
+              pointRadius: 0,
+              tension: 0.35
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false, axis: 'x' },
+          plugins: {
+            legend: { position: 'top', labels: { usePointStyle: true, padding: 15 } },
+            tooltip: {
+              callbacks: {
+                title: function(items) {
+                  const label = items && items.length ? items[0].label : '';
+                  const params = getParameters();
+                  if (params.timeHorizon < 5) {
+                    const m = Number(label);
+                    const yrs = (m / 12).toFixed(1);
+                    return currentLang === 'ru' ? `Месяц ${m} (${yrs} лет)` : `Month ${m} (${yrs} yrs)`;
+                  }
+                  const y = Number(label);
+                  return currentLang === 'ru' ? `Год ${y}` : `Year ${y}`;
+                },
+                label: function(context) {
+                  return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { maxTicksLimit: 5, callback: v => formatCurrencyCompact(Number(v)) }
+            }
+          }
+        }
+      });
+    }
+
+    function updateCompositionChart() {
+      const ctx = document.getElementById('compositionChart').getContext('2d');
+      if (compositionChart) compositionChart.destroy();
+
+      const params = getParameters();
+      // Composition chart shows pure user allocation split only:
+      // asset share vs stable share from initial capital (no leverage overlay).
+      const assetInvested = params.initialCapital * (params.assetAllocation / 100);
+      const stable = params.initialCapital * ((100 - params.assetAllocation) / 100);
+
+      const values = [assetInvested, stable];
+      const labels = [t('labelAssets'), t('labelStables')];
+      const total = values[0] + values[1];
+
+      const sliceLabelsPlugin = {
+        id: 'sliceLabels',
+        afterDatasetsDraw(chart) {
+          const meta = chart.getDatasetMeta(0);
+          if (!meta || !meta.data || !meta.data.length) return;
+          const arcs = meta.data;
+
+          const c = chart.ctx;
+          c.save();
+          c.fillStyle = 'rgba(255,255,255,0.96)';
+          c.textAlign = 'center';
+          c.textBaseline = 'middle';
+          c.shadowColor = 'rgba(0,0,0,0.35)';
+          c.shadowBlur = 6;
+
+          arcs.forEach((arc, i) => {
+            const pct = total > 0 ? (values[i] / total) * 100 : 0;
+            const innerR = arc.innerRadius;
+            const outerR = arc.outerRadius;
+            const mid = (arc.startAngle + arc.endAngle) / 2;
+            const radius = innerR + (outerR - innerR) * 0.58;
+            const x = arc.x + Math.cos(mid) * radius;
+            const y = arc.y + Math.sin(mid) * radius;
+
+            const line1 = labels[i];
+            const line2 = `${pct.toFixed(0)}%`;
+
+            c.fillStyle = 'rgba(255,255,255,0.98)';
+            c.font = '800 12px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+            c.fillText(line1, x, y - 7);
+            c.font = '800 11px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+            c.fillText(line2, x, y + 9);
+          });
+
+          c.restore();
+        }
+      };
+
+      compositionChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data: values,
+            backgroundColor: ['#667eea', '#764ba2'],
+            borderColor: 'white',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          cutout: '58%',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const idx = context.dataIndex;
+                  const percent = total > 0 ? (values[idx] / total) * 100 : 0;
+                  return labels[idx] + ': ' + formatCurrency(context.raw) + ' (' + percent.toFixed(0) + '%)';
+                }
+              }
+            }
+          }
+        },
+        plugins: [sliceLabelsPlugin]
+      });
+    }
+
+    function updateIncomeChart(data) {
+      const ctx = document.getElementById('incomeChart').getContext('2d');
+      if (incomeChart) incomeChart.destroy();
+
+      incomeChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: data.labels,
+          datasets: [{
+            label: t('labelStrategyIncome'),
+            data: data.strategyIncomes,
+            backgroundColor: 'rgba(102, 126, 234, 0.75)',
+            borderColor: '#667eea',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: function(items) {
+                  const label = items && items.length ? items[0].label : '';
+                  const params = getParameters();
+                  if (params.timeHorizon < 5) {
+                    const m = Number(label);
+                    const yrs = (m / 12).toFixed(1);
+                    return currentLang === 'ru' ? `Месяц ${m} (${yrs} лет)` : `Month ${m} (${yrs} yrs)`;
+                  }
+                  const y = Number(label);
+                  return currentLang === 'ru' ? `Год ${y}` : `Year ${y}`;
+                },
+                label: function(context) {
+                  const v = context.parsed.y;
+                  const params = getParameters();
+                  const monthly = params.timeHorizon < 5;
+                  const per = currentLang === 'ru'
+                    ? (monthly ? ' / месяц' : ' / год')
+                    : (monthly ? ' / month' : ' / year');
+                  return context.dataset.label + ': ' + formatCurrency(v) + per;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { maxTicksLimit: 5, callback: v => formatCurrencyCompact(Number(v)) }
+            }
+          }
+        }
+      });
+    }
+
+    function updateMonthlyIncomeChart(data) {
+      const ctx = document.getElementById('monthlyIncomeChart').getContext('2d');
+      if (monthlyIncomeChart) monthlyIncomeChart.destroy();
+
+      monthlyIncomeChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.labels,
+          datasets: [{
+            label: t('labelMonthlyPassiveIncome'),
+            data: data.monthlyIncomes,
+            borderColor: '#f093fb',
+            backgroundColor: 'rgba(240, 147, 251, 0.12)',
+            borderWidth: 3,
+            tension: 0.35,
+            fill: true,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: function(items) {
+                  const label = items && items.length ? items[0].label : '';
+                  const params = getParameters();
+                  if (params.timeHorizon < 5) {
+                    const m = Number(label);
+                    const yrs = (m / 12).toFixed(1);
+                    return currentLang === 'ru' ? `Месяц ${m} (${yrs} лет)` : `Month ${m} (${yrs} yrs)`;
+                  }
+                  const y = Number(label);
+                  return currentLang === 'ru' ? `Год ${y}` : `Year ${y}`;
+                },
+                label: function(context) {
+                  const v = context.parsed.y;
+                  const per = currentLang === 'ru' ? ' / месяц' : ' / month';
+                  return context.dataset.label + ': ' + formatCurrency(v) + per;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { maxTicksLimit: 5, callback: v => formatCurrencyCompact(Number(v)) }
+            }
+          }
+        }
+      });
+    }
+
+    function updateBreakdownChart(dataNoLeverageSimple, dataLeverageSimple, dataNoLeverageCompound, dataLeverageCompound) {
+      const ctx = document.getElementById('breakdownChart').getContext('2d');
+      if (breakdownChart) breakdownChart.destroy();
+
+      const labels = dataLeverageCompound.labels;
+      const principal = dataNoLeverageSimple.cashBaseline;
+
+      // Strategy effect (simple, no leverage): portfolio(no leverage) - invested principal.
+      const strategyEffect = dataNoLeverageSimple.portfolioValues.map((v, i) => v - principal[i]);
+      // Leverage effect by period: direct delta between toggle ON and OFF.
+      const leverageEffect = dataLeverageCompound.portfolioValues.map((v, i) => v - dataNoLeverageCompound.portfolioValues[i]);
+      // Reinvestment effect (compound vs simple): only the extra compounding.
+      const reinvestEffect = dataLeverageCompound.portfolioValues.map((v, i) => v - dataLeverageSimple.portfolioValues[i]);
+
+      breakdownChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: t('labelCashBaseline'),
+              data: principal,
+              backgroundColor: 'rgba(0,0,0,0.05)',
+              borderColor: 'rgba(0,0,0,0.08)',
+              borderWidth: 1,
+              stack: 'stack1'
+            },
+            {
+              label: t('labelStrategyEffect'),
+              data: strategyEffect,
+              backgroundColor: 'rgba(240, 147, 251, 0.88)', // pink: strategy effect
+              borderColor: '#f093fb',
+              borderWidth: 1,
+              stack: 'stack1'
+            },
+            {
+              label: t('labelLeverageEffect'),
+              data: leverageEffect,
+              backgroundColor: 'rgba(102, 126, 234, 0.75)', // blue: leverage effect
+              borderColor: '#667eea',
+              borderWidth: 1,
+              stack: 'stack1'
+            },
+            {
+              label: t('labelReinvestEffect'),
+              data: reinvestEffect,
+              backgroundColor: 'rgba(0, 212, 170, 0.65)', // green/teal: reinvest effect
+              borderColor: 'rgba(0, 212, 170, 0.95)',
+              borderWidth: 1,
+              stack: 'stack1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: true, position: 'top', labels: { usePointStyle: true, padding: 12 } },
+            tooltip: {
+              callbacks: {
+                title: function(items) {
+                  const label = items && items.length ? items[0].label : '';
+                  const params = getParameters();
+                  if (params.timeHorizon < 5) {
+                    const m = Number(label);
+                    const yrs = (m / 12).toFixed(1);
+                    return currentLang === 'ru' ? `Месяц ${m} (${yrs} лет)` : `Month ${m} (${yrs} yrs)`;
+                  }
+                  const y = Number(label);
+                  return currentLang === 'ru' ? `Год ${y}` : `Year ${y}`;
+                },
+                label: function(context) {
+                  return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
+                }
+              }
+            }
+          },
+          scales: {
+            x: { stacked: true },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+              ticks: { maxTicksLimit: 5, callback: v => formatCurrencyCompact(Number(v)) }
+            }
+          }
+        }
+      });
+    }
+
+    function calculateStressModel(btcPrice) {
+      const params = getParameters();
+      const collateralBase = params.initialCapital * (params.assetAllocation / 100);
+      const reserveBase = params.initialCapital * ((100 - params.assetAllocation) / 100);
+      const shares = getStrategyShares(params.strategyType);
+      const debt = collateralBase * LEVERAGE_RATIO;
+      const liqThreshold = 0.85;
+      const assetPoolDropFactor = 0.70; // asset LP drops 30% slower than BTC
+      const strategyCapital = reserveBase + debt;
+      const stableSleeveBase = strategyCapital * shares.lpStableShare;
+      const assetSleeveBase = strategyCapital * shares.lpAssetsShare;
+
+      const evaluateScenario = (drop) => {
+        const collateralValue = collateralBase * (1 - drop);
+        const stableSleeveValue = stableSleeveBase;
+        const assetSleeveValue = assetSleeveBase * (1 - assetPoolDropFactor * drop);
+        const defensiveValue = stableSleeveValue + assetSleeveValue;
+        // Liquidation rule: debt >= 85% of total available collateral.
+        // External sleeves are treated as add-on collateral (top-up source), not instant debt payoff.
+        const totalCollateralForLiq = collateralValue + defensiveValue;
+        const health = totalCollateralForLiq > 0 ? debt / totalCollateralForLiq : Infinity;
+        const buffer = liqThreshold - health;
+        const status = health >= liqThreshold ? 'risk' : (buffer < 0.08 ? 'warning' : 'safe');
+        return {
+          drop,
+          btc: btcPrice * (1 - drop),
+          positionValue: collateralValue + stableSleeveValue + assetSleeveValue,
+          health,
+          buffer,
+          status
+        };
+      };
+
+      let dropToLiq = Number.POSITIVE_INFINITY;
+      for (let d = 0; d <= 1; d += 0.0005) {
+        const check = evaluateScenario(d);
+        if (check.health >= liqThreshold) {
+          dropToLiq = d;
+          break;
+        }
+      }
+      const boundedDrop = Number.isFinite(dropToLiq) ? Math.max(0, Math.min(1, dropToLiq)) : 1;
+      const liquidationPrice = btcPrice * (1 - boundedDrop);
+
+      const scenarios = [0.2, 0.35, 0.5, 0.65, 0.75, 0.8];
+      const rows = scenarios.map(evaluateScenario);
+
+      return {
+        dropToLiq,
+        liquidationPrice,
+        rows
+      };
+    }
+
+    function renderStressTest() {
+      const params = getParameters();
+      const card = document.getElementById('stressCard');
+      if (!card) return;
+      if (!params.useLeverage) {
+        card.classList.remove('visible');
+        return;
+      }
+      card.classList.add('visible');
+
+      const spot = Math.max(1000, Number(document.getElementById('btcSpotPrice').value) || 80000);
+      const model = calculateStressModel(spot);
+
+      const headline = document.getElementById('stressHeadline');
+      const liquidationValueEl = document.getElementById('stressLiquidationValue');
+      if (headline) {
+        if (model.dropToLiq >= 1) {
+          if (liquidationValueEl) liquidationValueEl.textContent = t('stressNoLiqValue');
+          headline.textContent = t('stressNoLiq');
+        } else {
+          const dist = (spot - model.liquidationPrice) / spot;
+          if (liquidationValueEl) liquidationValueEl.textContent = formatCurrency(model.liquidationPrice);
+          headline.textContent =
+            t('stressLiqPrice') + ': ' + formatCurrency(model.liquidationPrice) +
+            ' · ' + t('stressDistance') + ': ' + formatPercent(dist);
+        }
+      }
+
+      const body = document.getElementById('stressTableBody');
+      if (!body) return;
+      body.innerHTML = '';
+
+      model.rows.forEach((row) => {
+        const tr = document.createElement('tr');
+        const scenarioText = '-' + Math.round(row.drop * 100) + '% BTC';
+
+        let statusText = t('stressStatusSafe');
+        let statusClass = 'stress-safe';
+        if (row.status === 'warning') {
+          statusText = t('stressStatusWarning');
+          statusClass = 'stress-warn';
+        } else if (row.status === 'risk') {
+          statusText = t('stressStatusRisk');
+          statusClass = 'stress-risk';
+        }
+
+        tr.innerHTML =
+          '<td>' + scenarioText + '</td>' +
+          '<td>' + formatCurrency(row.btc) + '</td>' +
+          '<td>' + formatCurrency(row.positionValue) + '</td>' +
+          '<td>' + row.health.toFixed(2) + '</td>' +
+          '<td>' + (row.buffer >= 0 ? '+' : '') + formatPercent(row.buffer, 2) + '</td>' +
+          '<td class="' + statusClass + '">' + statusText + '</td>';
+        body.appendChild(tr);
+      });
+    }
+
+    async function refreshBtcPrice() {
+      const input = document.getElementById('btcSpotPrice');
+      if (!input) return;
+      try {
+        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+        const payload = await response.json();
+        const price = Number(payload && payload.bitcoin && payload.bitcoin.usd);
+        if (Number.isFinite(price) && price > 0) input.value = Math.round(price);
+      } catch (e) {
+        // Keep manual value if API is unavailable.
+      }
+      updateDashboard();
+    }
+
+    async function loadNavigatorData() {
+      navigatorLoadError = false;
+      try {
+        const response = await fetch(NAVIGATOR_API_URL, { method: 'GET' });
+        const payload = await response.json();
+        if (payload && Array.isArray(payload.tools) && payload.tools.length) {
+          navigatorTools = payload.tools;
+          navigatorLiveLoaded = true;
+        } else {
+          navigatorTools = fallbackNavigatorTools.slice();
+          navigatorLoadError = true;
+        }
+      } catch (e) {
+        navigatorTools = fallbackNavigatorTools.slice();
+        navigatorLoadError = true;
+      }
+      updateDashboard();
+    }
+
+    function updateDisplays() {
+      const ranges = [
+        ['initialCapital', 'initialCapitalDisplay'],
+        ['monthlyInvestment', 'monthlyInvestmentDisplay'],
+        ['assetAllocation', 'assetAllocationDisplay'],
+        ['timeHorizon', 'timeHorizonDisplay']
+      ];
+      ranges.forEach(pair => {
+        const r = document.getElementById(pair[0]);
+        const n = document.getElementById(pair[1]);
+        if (!r || !n) return;
+        n.value = r.value;
+      });
+    }
+
+    function resetParameters() {
+      document.getElementById('initialCapital').value = 10000;
+      document.getElementById('monthlyInvestment').value = 500;
+      document.getElementById('assetAllocation').value = 60;
+      document.getElementById('strategyType').value = 'medium';
+      document.getElementById('timeHorizon').value = 10;
+      document.getElementById('useLeverage').checked = false;
+
+      updateDisplays();
+      updateStrategyDescription();
+      updateDashboard();
+    }
+
+    function bindSliderAndNumber(rangeId, numberId) {
+      const rangeEl = document.getElementById(rangeId);
+      const numberEl = document.getElementById(numberId);
+      if (!rangeEl || !numberEl) return;
+
+      rangeEl.addEventListener('input', function() {
+        numberEl.value = rangeEl.value;
+        updateDashboard();
+      });
+      numberEl.addEventListener('input', function() {
+        rangeEl.value = numberEl.value;
+        updateDashboard();
+      });
+    }
+
+    // Bind sliders
+    bindSliderAndNumber('initialCapital', 'initialCapitalDisplay');
+    bindSliderAndNumber('monthlyInvestment', 'monthlyInvestmentDisplay');
+    bindSliderAndNumber('assetAllocation', 'assetAllocationDisplay');
+    bindSliderAndNumber('timeHorizon', 'timeHorizonDisplay');
+
+    document.getElementById('strategyType').addEventListener('change', function() {
+      updateStrategyDescription();
+      updateDashboard();
+    });
+
+    document.getElementById('useLeverage').addEventListener('change', function() {
+      updateDashboard();
+    });
+    document.getElementById('btcSpotPrice').addEventListener('input', function() {
+      updateDashboard();
+    });
+    document.getElementById('refreshBtcBtn').addEventListener('click', function() {
+      refreshBtcPrice();
+    });
+
+    // Initial load
+    (function initApp() {
+      updateDisplays();
+      updateStrategyDescription();
+      applyLanguage(currentLang);
+      loadNavigatorData();
+      refreshBtcPrice();
+      // Keep recommendations fresh during long sessions.
+      setInterval(loadNavigatorData, 5 * 60 * 1000);
+    })();
+  </script>
+</body>
+</html>
