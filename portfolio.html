@@ -349,6 +349,46 @@
       font-weight: 700;
     }
     .pool-link:hover { text-decoration: underline; }
+    .lending-card {
+      background: #fff;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      margin-top: 24px;
+      display: none;
+    }
+    .lending-card.visible { display: block; }
+    .lending-kpis {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 12px 0 16px;
+    }
+    .lending-kpi {
+      border: 1px solid #ececf4;
+      border-radius: 12px;
+      padding: 14px;
+      background: #fbfbfe;
+    }
+    .lending-kpi-label {
+      font-size: 0.82em;
+      color: #636373;
+      text-transform: uppercase;
+      letter-spacing: 0.45px;
+    }
+    .lending-kpi-value {
+      margin-top: 6px;
+      font-size: 1.55em;
+      font-weight: 900;
+      color: #667eea;
+      line-height: 1.15;
+    }
+    .lending-kpi-sub {
+      margin-top: 6px;
+      font-size: 0.84em;
+      color: #555;
+      line-height: 1.35;
+    }
     .guide-title { font-size: 1.1em; font-weight: 700; color: #333; margin-bottom: 10px; }
     .guide-summary { font-size: 0.95em; color: #4c4c4c; margin-bottom: 12px; line-height: 1.45; }
     .guide-steps { padding-left: 18px; color: #444; line-height: 1.5; }
@@ -512,6 +552,9 @@
       .allocation-grid {
         grid-template-columns: 1fr;
       }
+      .lending-kpis {
+        grid-template-columns: 1fr;
+      }
 
       .tall-canvas {
         height: 280px !important;
@@ -558,7 +601,7 @@
       color: white;
     }
   </style>
-  <link rel="stylesheet" href="https://cry-maden008.pythonanywhere.com/vip-static/vip-auth.css" />
+  <link rel="stylesheet" href="https://cry-Maden008.pythonanywhere.com/vip-static/vip-auth.css" />
 </head>
 <body>
   <div id="vipAuthGate" class="vip-auth-gate" role="dialog" aria-modal="true">
@@ -725,6 +768,25 @@
       </div>
     </div>
 
+    <div class="lending-card" id="lendingCard">
+      <div class="guide-title" data-i18n="lendingTitle">Collateral &amp; Borrow (Labs Lend)</div>
+      <div class="guide-summary" id="lendingSummary"></div>
+      <div class="lending-kpis">
+        <div class="lending-kpi">
+          <div class="lending-kpi-label" data-i18n="lendingCollateralLabel">BTC collateral</div>
+          <div class="lending-kpi-value" id="lendingCollateralValue">$0</div>
+          <div class="lending-kpi-sub" data-i18n="lendingCollateralHint">WBTC / cbBTC in lending protocol</div>
+        </div>
+        <div class="lending-kpi">
+          <div class="lending-kpi-label" data-i18n="lendingBorrowLabel">Stablecoin borrow (40%)</div>
+          <div class="lending-kpi-value" id="lendingBorrowValue">$0</div>
+          <div class="lending-kpi-sub" data-i18n="lendingBorrowHint">Top-3 platforms below (lowest borrow APY)</div>
+        </div>
+      </div>
+      <h4 style="margin:0 0 8px;color:#333;font-size:0.95em;" data-i18n="lendingTopTitle">Top-3 stablecoin borrow rates (Labs Lend)</h4>
+      <ul id="lendingBorrowList" class="pool-list"></ul>
+    </div>
+
     <div class="stress-card" id="stressCard">
       <div class="guide-title" data-i18n="stressTitle">Leverage Stress Test</div>
       <div class="stress-summary" data-i18n="stressSummary">Estimates liquidation zone for BTC-collateralized leverage and shows reserve top-up capacity under market drawdowns.</div>
@@ -833,7 +895,16 @@
         allocStableAmount: 'To stable strategies:',
         allocNoPart: 'No allocation for this bucket in current strategy.',
         allocPerPosition: 'Suggested amount per position',
-        allocSourceFallback: 'Live feed temporarily unavailable. Showing fallback examples.'
+        allocSourceFallback: 'Live feed temporarily unavailable. Showing fallback examples.',
+        lendingTitle: 'Collateral & Borrow (Labs Lend)',
+        lendingSummary: 'Leverage setup from your BTC allocation:',
+        lendingCollateralLabel: 'BTC collateral',
+        lendingCollateralHint: 'WBTC / cbBTC in lending protocol',
+        lendingBorrowLabel: 'Stablecoin borrow (40%)',
+        lendingBorrowHint: 'Top-3 platforms below (lowest borrow APY)',
+        lendingTopTitle: 'Top-3 stablecoin borrow rates (Labs Lend)',
+        lendingBorrowApy: 'Borrow APY',
+        lendingSourceFallback: 'Labs Lend feed unavailable. Showing cached examples.'
       },
       ru: {
         title: 'Криптопортфель — Симулятор инвестиций',
@@ -909,7 +980,16 @@
         allocStableAmount: 'Сумма в стейбл-стратегии:',
         allocNoPart: 'В текущей стратегии на этот блок сумма не выделяется.',
         allocPerPosition: 'Рекомендованная сумма на позицию',
-        allocSourceFallback: 'Живая лента временно недоступна. Показаны резервные примеры.'
+        allocSourceFallback: 'Живая лента временно недоступна. Показаны резервные примеры.',
+        lendingTitle: 'Залог и кредит (Labs Lend)',
+        lendingSummary: 'Схема плеча от вашей доли BTC:',
+        lendingCollateralLabel: 'Залог BTC',
+        lendingCollateralHint: 'WBTC / cbBTC в lending-протоколе',
+        lendingBorrowLabel: 'Займ в стейблкоинах (40%)',
+        lendingBorrowHint: 'Топ-3 платформы ниже (минимальная ставка по кредиту)',
+        lendingTopTitle: 'Топ-3 ставки по кредиту стейблкоинов (Labs Lend)',
+        lendingBorrowApy: 'Ставка по кредиту',
+        lendingSourceFallback: 'Лента Labs Lend недоступна. Показаны резервные примеры.'
       }
     };
 
@@ -1013,6 +1093,25 @@
     let navigatorTools = [];
     let navigatorLiveLoaded = false;
     let navigatorLoadError = false;
+    const fallbackLendingRates = [
+      { platform: 'aave-v3', chain: 'Celo', token_symbol: 'USDm', borrow_apy: 0.53, position_url: 'https://app.aave.com' },
+      { platform: 'aave-v3', chain: 'Celo', token_symbol: 'USDC', borrow_apy: 1.37, position_url: 'https://app.aave.com' },
+      { platform: 'aave-v3', chain: 'Celo', token_symbol: 'USD₮', borrow_apy: 1.87, position_url: 'https://app.aave.com' }
+    ];
+    let lendingRates = [];
+    let lendingLoadError = false;
+
+    function lendingApiBase() {
+      const base = (window.VIP_AUTH_BACKEND || 'https://cry-maden008.pythonanywhere.com').replace(/\/$/, '');
+      return base;
+    }
+
+    function formatPlatformName(slug) {
+      if (!slug) return '-';
+      return String(slug)
+        .replace(/-/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+    }
 
     // Strategy parameters
     const strategies = {
@@ -1163,6 +1262,66 @@
 
       if (showEth) draw('ethereumPoolsList', ethTop, toEth);
       if (showStable) draw('stablePoolsList', stableTop, toStable);
+      renderLeverageLending();
+    }
+
+    function renderLeverageLending() {
+      const params = getParameters();
+      const card = document.getElementById('lendingCard');
+      if (!card) return;
+
+      if (!params.useLeverage) {
+        card.classList.remove('visible');
+        return;
+      }
+      card.classList.add('visible');
+
+      const initial = params.initialCapital;
+      const collateralAmount = initial * (params.assetAllocation / 100);
+      const borrowAmount = collateralAmount * LEVERAGE_RATIO;
+
+      const summary = document.getElementById('lendingSummary');
+      if (summary) {
+        let text = t('lendingSummary') + ' ' +
+          (currentLang === 'ru'
+            ? `Залог: ${formatCurrency(collateralAmount)} (WBTC/cbBTC). Займ: ${formatCurrency(borrowAmount)}.`
+            : `Collateral: ${formatCurrency(collateralAmount)} (WBTC/cbBTC). Borrow: ${formatCurrency(borrowAmount)}.`);
+        if (lendingLoadError) text += ' ' + t('lendingSourceFallback');
+        summary.textContent = text;
+      }
+
+      const collateralEl = document.getElementById('lendingCollateralValue');
+      const borrowEl = document.getElementById('lendingBorrowValue');
+      if (collateralEl) collateralEl.textContent = formatCurrency(collateralAmount);
+      if (borrowEl) borrowEl.textContent = formatCurrency(borrowAmount);
+
+      const list = document.getElementById('lendingBorrowList');
+      if (!list) return;
+      list.innerHTML = '';
+
+      const rows = (lendingRates.length ? lendingRates : fallbackLendingRates).slice(0, 3);
+      if (!rows.length) {
+        const li = document.createElement('li');
+        li.textContent = t('allocNoPart');
+        list.appendChild(li);
+        return;
+      }
+
+      rows.forEach(function(row) {
+        const li = document.createElement('li');
+        const url = row.position_url || '#';
+        const apy = Number(row.borrow_apy);
+        const apyTxt = Number.isFinite(apy) ? apy.toFixed(2) + '%' : '—';
+        const platform = formatPlatformName(row.platform);
+        const chain = row.chain || '-';
+        const token = row.token_symbol || '-';
+        li.innerHTML =
+          '<a class="pool-link" href="' + url + '" target="_blank" rel="noopener noreferrer">' +
+          platform + ' · ' + chain + ' · ' + token + '</a><br>' +
+          t('lendingBorrowApy') + ': ' + apyTxt + ' · ' +
+          (currentLang === 'ru' ? 'Сумма займа' : 'Borrow amount') + ': ' + formatCurrency(borrowAmount);
+        list.appendChild(li);
+      });
     }
 
     function getExpectedAnnualRate(params) {
@@ -1810,6 +1969,34 @@
       updateDashboard();
     }
 
+    async function loadLendingRates() {
+      lendingLoadError = false;
+      try {
+        const q = new URLSearchParams({
+          mode: 'borrow',
+          sort_by: 'borrow_apy',
+          order: 'asc',
+          limit: '3',
+          token_family: 'stablecoin'
+        });
+        const response = await fetch(lendingApiBase() + '/api/rates?' + q.toString(), {
+          method: 'GET',
+          credentials: 'include'
+        });
+        const payload = await response.json();
+        if (payload && payload.ok && Array.isArray(payload.items) && payload.items.length) {
+          lendingRates = payload.items;
+        } else {
+          lendingRates = fallbackLendingRates.slice();
+          lendingLoadError = true;
+        }
+      } catch (e) {
+        lendingRates = fallbackLendingRates.slice();
+        lendingLoadError = true;
+      }
+      renderLeverageLending();
+    }
+
     async function loadNavigatorData() {
       navigatorLoadError = false;
       try {
@@ -1898,15 +2085,18 @@
       updateStrategyDescription();
       applyLanguage(currentLang);
       loadNavigatorData();
+      loadLendingRates();
       refreshBtcPrice();
       setInterval(loadNavigatorData, 5 * 60 * 1000);
+      setInterval(loadLendingRates, 5 * 60 * 1000);
     }
   </script>
-  <script src="https://cry-maden008.pythonanywhere.com/vip-static/vip-auth-client.js"></script>
+  <script src="https://cry-Maden008.pythonanywhere.com/vip-static/vip-auth-client.js"></script>
   <script>
-    window.VIP_AUTH_BACKEND = 'https://cry-maden008.pythonanywhere.com';
+    window.VIP_AUTH_BACKEND = 'https://cry-Maden008.pythonanywhere.com';
     DeFiLabsVipAuth.init({
       hostsRequireAuth: ['lego-labs.vercel.app', 'localhost', '127.0.0.1'],
+      protectFetch: true,
       onAuthenticated: bootLegoLabs
     });
   </script>
