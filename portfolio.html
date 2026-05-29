@@ -1106,7 +1106,8 @@
     const DEFI_LABS_GAS_URL = 'https://script.google.com/macros/s/AKfycbwap2a3QP0VNx-p9cv-MbDXLuWKq0eOqNyCT8ZjwDblbXPIN0uOkV_FFPCR2ujhSlSngw/exec';
     const NAVIGATOR_API_URL = DEFI_LABS_GAS_URL + '?project=main';
     const LABS_LEND_API_URL = DEFI_LABS_GAS_URL + '?project=labs-lend-borrow';
-    const LABS_LEND_GITHUB_JSON = 'https://raw.githubusercontent.com/GithubRavilS/Lendingdepositrates/main/data/embed/top-borrow-stablecoins.json';
+    const LENDING_SHEET_GVIZ_URL =
+      'https://docs.google.com/spreadsheets/d/1ZrMaFUyrHmxldFG242OsKHLOWPxhI4H8vCxO-TvL9Zg/gviz/tq?tqx=out:json&sheet=lending';
     const fallbackNavigatorTools = [
       { categoryId: 'ethereum', name: 'Uniswap V3', pair: 'WETH / USDC', apy: 20.7, period: '14d', link: 'https://revert.finance' },
       { categoryId: 'ethereum', name: 'PancakeSwap V3', pair: 'WETH / USDC', apy: 26.2, period: '13d', link: 'https://cloud-ui.krystal.app' },
@@ -1340,31 +1341,64 @@
       });
     }
 
-    async function fetchBorrowRatesFromLabsLend() {
-      // Same pattern as Navigator: public Google Apps Script JSON feed.
+    async function fetchBorrowRatesFromLendingSheet() {
       try {
-        const response = await fetch(LABS_LEND_API_URL, { method: 'GET' });
-        const payload = await response.json();
-        if (payload && payload.ok && Array.isArray(payload.items) && payload.items.length) {
-          return mapLabsLendRows(payload.items);
-        }
-      } catch (e) {
-        // continue to fallback
-      }
+        const response = await fetch(LENDING_SHEET_GVIZ_URL + '&t=' + Date.now(), { method: 'GET' });
+        const text = await response.text();
+        const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)\s*;?\s*$/);
+        if (!match) return [];
 
-      // Fallback if GAS not deployed yet or cache empty.
-      try {
-        const ghRes = await fetch(LABS_LEND_GITHUB_JSON + '?t=' + Date.now(), {
-          method: 'GET',
-          headers: { Accept: 'application/json' }
+        const data = JSON.parse(match[1]);
+        const rows = (data.table && data.table.rows) || [];
+        const items = rows.map(function(row) {
+          const c = row.c || [];
+          function cell(i) {
+            return c[i] && c[i].v != null && c[i].v !== '' ? c[i].v : '';
+          }
+          const desc = String(cell(5) || '').trim();
+          var platform = desc;
+          if (/aave/i.test(desc)) platform = 'aave-v3';
+          else if (/venus/i.test(desc)) platform = 'venus-core-pool';
+          return {
+            token_symbol: String(cell(0) || '').trim(),
+            borrow_apy: borrowApyPercent(cell(1)),
+            chain: String(cell(2) || '').trim(),
+            position_url: String(cell(4) || '').trim(),
+            platform: platform
+          };
+        }).filter(function(r) {
+          return r.token_symbol && r.borrow_apy != null;
         });
-        const ghPayload = await ghRes.json();
-        if (ghPayload && ghPayload.ok && Array.isArray(ghPayload.items) && ghPayload.items.length) {
-          return mapLabsLendRows(ghPayload.items);
+
+        items.sort(function(a, b) { return a.borrow_apy - b.borrow_apy; });
+        return mapLabsLendRows(items.slice(0, 3));
+      } catch (e) {
+        return [];
+      }
+    }
+
+    async function fetchBorrowRatesFromLabsLend() {
+      // 1) GAS Web App (после New version deploy).
+      try {
+        const response = await fetch(LABS_LEND_API_URL + '&t=' + Date.now(), { method: 'GET' });
+        const payload = await response.json();
+        if (
+          payload &&
+          payload.ok &&
+          Array.isArray(payload.items) &&
+          payload.items.length &&
+          !payload.tools
+        ) {
+          return mapLabsLendRows(payload.items);
         }
       } catch (e) {
         // continue
       }
+
+      // 2) Публичный лист lending — те же данные, что в Excel (работает сразу).
+      const fromSheet = await fetchBorrowRatesFromLendingSheet();
+      if (fromSheet.length) return fromSheet;
+
       return [];
     }
 
