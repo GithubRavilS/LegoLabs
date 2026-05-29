@@ -1,0 +1,5 @@
+pre-commit:
+  parallel: true
+  commands:
+    validate-lending-embed:
+      run: python3 scripts/validate_lending_embed.py
