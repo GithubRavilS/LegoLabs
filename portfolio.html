@@ -896,7 +896,7 @@
         lendingBorrowApy: 'Borrow APY',
         lendingOpenLink: 'Open position',
         lendingNoRates: 'Borrow rates are loading or temporarily unavailable.',
-        lendingSourceFallback: 'Labs Lend API unavailable; showing live public market data (Aave).'
+        lendingSourceFallback: 'Could not load Labs Lend data from GitHub.'
       },
       ru: {
         title: 'Криптопортфель — Симулятор инвестиций',
@@ -983,7 +983,7 @@
         lendingBorrowApy: 'Ставка по кредиту',
         lendingOpenLink: 'Перейти',
         lendingNoRates: 'Ставки по кредиту загружаются или временно недоступны.',
-        lendingSourceFallback: 'API Labs Lend недоступен; показаны живые рыночные данные (Aave).'
+        lendingSourceFallback: 'Не удалось загрузить данные Labs Lend с GitHub.'
       }
     };
 
@@ -1038,33 +1038,10 @@
       return n;
     }
 
-    const STABLE_TOKEN_KEYWORDS = ['USD', 'USDT', 'USDC', 'DAI', 'TUSD', 'USDE', 'LUSD', 'FDUSD', 'USDS'];
-    const AAVE_GRAPHQL_CHAIN_IDS = [1, 8453, 42161, 10, 137, 100, 43114, 59144, 56, 146, 324, 534352, 5000, 1088, 42220, 1868, 84532];
-    const GRAPHQL_CHAIN_TO_DISPLAY = { Optimism: 'OP Mainnet', zkSync: 'zkSync Era' };
-    const MIN_BORROW_APY_PCT = 0.01;
-
-    function isStablecoinToken(symbol) {
-      const s = String(symbol || '').toUpperCase();
-      return STABLE_TOKEN_KEYWORDS.some(function(k) { return s.indexOf(k) !== -1; });
-    }
-
     // Labs Lend UI shows borrow APY in percent (same as fmtPct in tracker app.js).
     function borrowApyPercent(raw) {
       const n = Number(raw);
       return Number.isFinite(n) ? n : null;
-    }
-
-    function parseAaveApyPercent(apyObj) {
-      if (!apyObj) return null;
-      if (apyObj.formatted != null && String(apyObj.formatted).trim()) {
-        const n = parseFloat(String(apyObj.formatted).replace('%', ''));
-        if (Number.isFinite(n)) return n;
-      }
-      if (apyObj.value == null) return null;
-      let v = parseFloat(String(apyObj.value));
-      if (!Number.isFinite(v)) return null;
-      if (v > -0.001 && v < 1.5) v *= 100;
-      return v;
     }
 
     function mapLabsLendRows(items) {
@@ -1135,6 +1112,7 @@
     let monthlyIncomeChart = null;
     let breakdownChart = null;
     const NAVIGATOR_API_URL = 'https://script.google.com/macros/s/AKfycbwap2a3QP0VNx-p9cv-MbDXLuWKq0eOqNyCT8ZjwDblbXPIN0uOkV_FFPCR2ujhSlSngw/exec?project=main';
+    const LABS_LEND_GITHUB_JSON = 'https://raw.githubusercontent.com/GithubRavilS/Lendingdepositrates/main/data/embed/top-borrow-stablecoins.json';
     const fallbackNavigatorTools = [
       { categoryId: 'ethereum', name: 'Uniswap V3', pair: 'WETH / USDC', apy: 20.7, period: '14d', link: 'https://revert.finance' },
       { categoryId: 'ethereum', name: 'PancakeSwap V3', pair: 'WETH / USDC', apy: 26.2, period: '13d', link: 'https://cloud-ui.krystal.app' },
@@ -1148,7 +1126,6 @@
     let navigatorLoadError = false;
     let lendingRates = [];
     let lendingLoadError = false;
-    let lendingUsedFallbackSource = false;
 
     function lendingApiBase() {
       const base = (window.VIP_AUTH_BACKEND || 'https://cry-maden008.pythonanywhere.com').replace(/\/$/, '');
@@ -1335,7 +1312,7 @@
           (currentLang === 'ru'
             ? `Залог: ${formatCurrency(collateralAmount)} (WBTC/cbBTC). Займ: ${formatCurrency(borrowAmount)}.`
             : `Collateral: ${formatCurrency(collateralAmount)} (WBTC/cbBTC). Borrow: ${formatCurrency(borrowAmount)}.`);
-        if (lendingUsedFallbackSource) text += ' ' + t('lendingSourceFallback');
+        if (lendingLoadError) text += ' ' + t('lendingSourceFallback');
         summary.textContent = text;
       }
 
@@ -1386,8 +1363,23 @@
     }
 
     async function fetchBorrowRatesFromLabsLend() {
-      const base = lendingApiBase();
       const headers = { Accept: 'application/json' };
+
+      // Primary: GitHub export from Lendingdepositrates (same query as Labs Lend UI).
+      try {
+        const ghRes = await fetch(LABS_LEND_GITHUB_JSON + '?t=' + Date.now(), {
+          method: 'GET',
+          headers: headers
+        });
+        const ghPayload = await ghRes.json();
+        if (ghPayload && ghPayload.ok && Array.isArray(ghPayload.items) && ghPayload.items.length) {
+          return mapLabsLendRows(ghPayload.items);
+        }
+      } catch (e) {
+        // continue
+      }
+
+      const base = lendingApiBase();
 
       try {
         const embedRes = await fetch(base + '/api/embed/top-borrow-stablecoins', {
@@ -1396,7 +1388,7 @@
         });
         const embedPayload = await embedRes.json();
         if (embedPayload && embedPayload.ok && Array.isArray(embedPayload.items) && embedPayload.items.length) {
-          return { items: mapLabsLendRows(embedPayload.items), source: 'labs-lend' };
+          return mapLabsLendRows(embedPayload.items);
         }
       } catch (e) {
         // continue
@@ -1413,65 +1405,12 @@
         });
         const payload = await response.json();
         if (payload && payload.ok && Array.isArray(payload.items) && payload.items.length) {
-          return { items: mapLabsLendRows(payload.items), source: 'labs-lend' };
+          return mapLabsLendRows(payload.items);
         }
       } catch (e) {
         // continue
       }
-      return { items: [], source: '' };
-    }
-
-    async function fetchBorrowRatesFromAavePublic() {
-      const query = `
-        query ($chainIds: [ChainId!]!) {
-          markets(request: { chainIds: $chainIds }) {
-            chain { name }
-            reserves {
-              isFrozen
-              isPaused
-              underlyingToken { address symbol }
-              borrowInfo { apy { formatted value } borrowingState borrowCapReached }
-            }
-          }
-        }
-      `;
-      const response = await fetch('https://api.v3.aave.com/graphql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: query, variables: { chainIds: AAVE_GRAPHQL_CHAIN_IDS } })
-      });
-      const payload = await response.json();
-      if (!payload || payload.errors) return [];
-
-      const rows = [];
-      (payload.data && payload.data.markets || []).forEach(function(market) {
-        const chainGql = (market.chain && market.chain.name) || '';
-        const chain = GRAPHQL_CHAIN_TO_DISPLAY[chainGql] || chainGql || '-';
-        (market.reserves || []).forEach(function(res) {
-          if (res.isFrozen || res.isPaused) return;
-          const token = res.underlyingToken || {};
-          const sym = token.symbol;
-          if (!isStablecoinToken(sym)) return;
-          const borrowInfo = res.borrowInfo || {};
-          if (borrowInfo.borrowingState !== 'ENABLED' || borrowInfo.borrowCapReached) return;
-          const borrowApy = parseAaveApyPercent(borrowInfo.apy);
-          if (borrowApy == null || borrowApy < MIN_BORROW_APY_PCT) return;
-          const addr = token.address || '';
-          const marketUrl = chainGql
-            ? 'https://app.aave.com/markets/?marketName=' + encodeURIComponent(chainGql)
-            : 'https://app.aave.com/';
-          rows.push({
-            platform: 'aave-v3',
-            chain: chain,
-            token_symbol: sym,
-            borrow_apy: borrowApy,
-            position_url: marketUrl
-          });
-        });
-      });
-
-      rows.sort(function(a, b) { return a.borrow_apy - b.borrow_apy; });
-      return mapLabsLendRows(rows).slice(0, 3);
+      return [];
     }
 
     function getExpectedAnnualRate(params) {
@@ -2121,15 +2060,8 @@
 
     async function loadLendingRates() {
       lendingLoadError = false;
-      lendingUsedFallbackSource = false;
       try {
-        const labs = await fetchBorrowRatesFromLabsLend();
-        if (labs.items.length) {
-          lendingRates = labs.items;
-        } else {
-          lendingRates = await fetchBorrowRatesFromAavePublic();
-          lendingUsedFallbackSource = lendingRates.length > 0;
-        }
+        lendingRates = await fetchBorrowRatesFromLabsLend();
         if (!lendingRates.length) lendingLoadError = true;
       } catch (e) {
         lendingRates = [];
