@@ -1029,12 +1029,6 @@
       return n;
     }
 
-    function isStablecoinSymbol(symbol) {
-      const sym = String(symbol || '').trim().toUpperCase();
-      if (!sym) return false;
-      return /^(USDC|USDT|DAI|FRAX|LUSD|GHO|USDE|SUSDE|RLUSD|CRVUSD|USD[TE]?|USD₮|USDM|SUSD)/.test(sym);
-    }
-
     function parseRatePercent(raw) {
       const n = Number(raw);
       if (!Number.isFinite(n)) return null;
