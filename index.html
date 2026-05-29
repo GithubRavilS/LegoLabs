@@ -894,6 +894,7 @@
         lendingBorrowHint: 'Top-3 platforms below (lowest borrow APY)',
         lendingTopTitle: 'Top-3 stablecoin borrow rates (Labs Lend)',
         lendingBorrowApy: 'Borrow APY',
+        lendingOpenLink: 'Open position',
         lendingSourceFallback: 'Labs Lend feed unavailable. Showing cached examples.'
       },
       ru: {
@@ -979,6 +980,7 @@
         lendingBorrowHint: 'Топ-3 платформы ниже (минимальная ставка по кредиту)',
         lendingTopTitle: 'Топ-3 ставки по кредиту стейблкоинов (Labs Lend)',
         lendingBorrowApy: 'Ставка по кредиту',
+        lendingOpenLink: 'Перейти',
         lendingSourceFallback: 'Лента Labs Lend недоступна. Показаны резервные примеры.'
       }
     };
@@ -1038,6 +1040,35 @@
       if (!Number.isFinite(n)) return null;
       if (n > 0 && n < 1.5) return n * 100;
       return n;
+    }
+
+    // Labs Lend / DefiLlama store borrow APY as percent (0.53 = 0.53%, not 53%).
+    function parseBorrowApyPercent(raw) {
+      const n = Number(raw);
+      if (!Number.isFinite(n)) return null;
+      if (n > 0 && n < 0.05) return n * 100;
+      return n;
+    }
+
+    function normalizeLendingRow(row) {
+      const url = String(row.position_url || row.url || row.link || '').trim();
+      return {
+        platform: row.platform || row.project || '',
+        chain: row.chain || '',
+        token_symbol: row.token_symbol || row.token || '',
+        borrow_apy: parseBorrowApyPercent(row.borrow_apy),
+        position_url: url
+      };
+    }
+
+    function selectCheapestBorrowRates(items, limit) {
+      if (limit === undefined) limit = 3;
+      if (!items || !items.length) return [];
+      return items
+        .map(normalizeLendingRow)
+        .filter(function(r) { return r.borrow_apy != null && r.borrow_apy >= 0; })
+        .sort(function(a, b) { return a.borrow_apy - b.borrow_apy; })
+        .slice(0, limit);
     }
 
     function getVipAuthToken() {
@@ -1106,9 +1137,9 @@
     let navigatorLiveLoaded = false;
     let navigatorLoadError = false;
     const fallbackLendingRates = [
-      { platform: 'aave-v3', chain: 'Celo', token_symbol: 'USDm', borrow_apy: 0.53, position_url: 'https://app.aave.com' },
-      { platform: 'aave-v3', chain: 'Celo', token_symbol: 'USDC', borrow_apy: 1.37, position_url: 'https://app.aave.com' },
-      { platform: 'aave-v3', chain: 'Celo', token_symbol: 'USD₮', borrow_apy: 1.87, position_url: 'https://app.aave.com' }
+      { platform: 'aave-v3', chain: 'Celo', token_symbol: 'USDm', borrow_apy: 0.53, position_url: 'https://defillama.com/yields/pool/4bbdb2ff-3237-44a5-bb86-6562f9814ad9' },
+      { platform: 'aave-v3', chain: 'Celo', token_symbol: 'USDC', borrow_apy: 1.37, position_url: 'https://defillama.com/yields/pool/78c4b5eb-6e36-4c3a-94b5-779e37dbf9a4' },
+      { platform: 'aave-v3', chain: 'Celo', token_symbol: 'USD₮', borrow_apy: 1.87, position_url: 'https://defillama.com/yields/pool/8a6cda27-aa2b-4201-bb05-9cfcfc4ab6fd' }
     ];
     let lendingRates = [];
     let lendingLoadError = false;
@@ -1311,7 +1342,10 @@
       if (!list) return;
       list.innerHTML = '';
 
-      const rows = (lendingRates.length ? lendingRates : fallbackLendingRates).slice(0, 3);
+      const rows = selectCheapestBorrowRates(
+        lendingRates.length ? lendingRates : fallbackLendingRates,
+        3
+      );
       if (!rows.length) {
         const li = document.createElement('li');
         li.textContent = t('allocNoPart');
@@ -1321,16 +1355,18 @@
 
       rows.forEach(function(row) {
         const li = document.createElement('li');
-        const url = row.position_url || '#';
-        const apyNorm = parseRatePercent(row.borrow_apy);
-        const apyTxt = apyNorm == null ? '—' : apyNorm.toFixed(2) + '%';
+        const url = row.position_url || '';
+        const apyTxt = row.borrow_apy == null ? '—' : row.borrow_apy.toFixed(2) + '%';
         const platform = formatPlatformName(row.platform);
         const chain = row.chain || '-';
         const token = row.token_symbol || '-';
+        const linkHtml = url
+          ? ' · <a class="pool-link" href="' + url + '" target="_blank" rel="noopener noreferrer">' +
+            t('lendingOpenLink') + ' →</a>'
+          : '';
         li.innerHTML =
-          '<a class="pool-link" href="' + url + '" target="_blank" rel="noopener noreferrer">' +
-          platform + ' · ' + chain + ' · ' + token + '</a><br>' +
-          t('lendingBorrowApy') + ': ' + apyTxt;
+          platform + ' · ' + chain + ' · ' + token + '<br>' +
+          t('lendingBorrowApy') + ': ' + apyTxt + linkHtml;
         list.appendChild(li);
       });
     }
@@ -1367,8 +1403,9 @@
           if (!isStablecoinSymbol(sym)) return;
           const borrowInfo = res.borrowInfo || {};
           if (borrowInfo.borrowingState !== 'ENABLED' || borrowInfo.borrowCapReached) return;
-          const borrowApy = parseRatePercent(
-            borrowInfo.apy && (borrowInfo.apy.formatted != null ? borrowInfo.apy.formatted : borrowInfo.apy.value)
+          const apyRaw = borrowInfo.apy || {};
+          const borrowApy = parseBorrowApyPercent(
+            apyRaw.formatted != null ? apyRaw.formatted : apyRaw.value
           );
           if (borrowApy == null || borrowApy < 0.01) return;
           rows.push({
@@ -1376,13 +1413,12 @@
             chain: chain,
             token_symbol: sym,
             borrow_apy: borrowApy,
-            position_url: 'https://app.aave.com/'
+            position_url: 'https://app.aave.com/?marketName=' + encodeURIComponent(chain)
           });
         });
       });
 
-      rows.sort((a, b) => a.borrow_apy - b.borrow_apy);
-      return rows.slice(0, 3);
+      return selectCheapestBorrowRates(rows, 3);
     }
 
     async function fetchBorrowRatesFromLabsLend() {
@@ -1394,7 +1430,7 @@
         mode: 'borrow',
         sort_by: 'borrow_apy',
         order: 'asc',
-        limit: '3',
+        limit: '100',
         token_family: 'stablecoin'
       });
       const response = await fetch(lendingApiBase() + '/api/rates?' + q.toString(), {
@@ -1404,7 +1440,7 @@
       });
       const payload = await response.json();
       if (payload && payload.ok && Array.isArray(payload.items) && payload.items.length) {
-        return payload.items;
+        return selectCheapestBorrowRates(payload.items, 3);
       }
       return [];
     }
@@ -2058,15 +2094,18 @@
       lendingLoadError = false;
       try {
         let items = await fetchBorrowRatesFromLabsLend();
-        if (!items.length) items = await fetchBorrowRatesFromAave();
-        if (items.length) {
-          lendingRates = items;
-        } else {
-          lendingRates = fallbackLendingRates.slice();
+        if (!items.length) {
+          items = selectCheapestBorrowRates(fallbackLendingRates, 3);
           lendingLoadError = true;
         }
+        if (!items.length) {
+          items = await fetchBorrowRatesFromAave();
+          if (items.length) lendingLoadError = true;
+        }
+        lendingRates = items.length ? items : selectCheapestBorrowRates(fallbackLendingRates, 3);
+        if (!lendingRates.length) lendingLoadError = true;
       } catch (e) {
-        lendingRates = fallbackLendingRates.slice();
+        lendingRates = selectCheapestBorrowRates(fallbackLendingRates, 3);
         lendingLoadError = true;
       }
       renderLeverageLending();
