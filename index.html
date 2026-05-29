@@ -896,7 +896,7 @@
         lendingBorrowApy: 'Borrow APY',
         lendingOpenLink: 'Open position',
         lendingNoRates: 'Borrow rates are loading or temporarily unavailable.',
-        lendingSourceFallback: 'Could not load Labs Lend data from GitHub.'
+        lendingSourceFallback: 'Could not load Labs Lend rates (Lendingdepositrates / Labs Lend API).'
       },
       ru: {
         title: 'Криптопортфель — Симулятор инвестиций',
@@ -983,7 +983,7 @@
         lendingBorrowApy: 'Ставка по кредиту',
         lendingOpenLink: 'Перейти',
         lendingNoRates: 'Ставки по кредиту загружаются или временно недоступны.',
-        lendingSourceFallback: 'Не удалось загрузить данные Labs Lend с GitHub.'
+        lendingSourceFallback: 'Не удалось загрузить ставки Labs Lend (Lendingdepositrates / API).'
       }
     };
 
@@ -1112,6 +1112,7 @@
     let monthlyIncomeChart = null;
     let breakdownChart = null;
     const NAVIGATOR_API_URL = 'https://script.google.com/macros/s/AKfycbwap2a3QP0VNx-p9cv-MbDXLuWKq0eOqNyCT8ZjwDblbXPIN0uOkV_FFPCR2ujhSlSngw/exec?project=main';
+    // Labs Lend: same pipeline as cry-maden008 (Borrow + stablecoin + APY asc). Updated on GitHub hourly.
     const LABS_LEND_GITHUB_JSON = 'https://raw.githubusercontent.com/GithubRavilS/Lendingdepositrates/main/data/embed/top-borrow-stablecoins.json';
     const fallbackNavigatorTools = [
       { categoryId: 'ethereum', name: 'Uniswap V3', pair: 'WETH / USDC', apy: 20.7, period: '14d', link: 'https://revert.finance' },
@@ -1364,8 +1365,23 @@
 
     async function fetchBorrowRatesFromLabsLend() {
       const headers = { Accept: 'application/json' };
+      const base = lendingApiBase();
 
-      // Primary: GitHub export from Lendingdepositrates (same query as Labs Lend UI).
+      // 1) Public embed on Labs Lend (live DB, same as site table).
+      try {
+        const embedRes = await fetch(base + '/api/embed/top-borrow-stablecoins?t=' + Date.now(), {
+          method: 'GET',
+          headers: headers
+        });
+        const embedPayload = await embedRes.json();
+        if (embedPayload && embedPayload.ok && Array.isArray(embedPayload.items) && embedPayload.items.length) {
+          return mapLabsLendRows(embedPayload.items);
+        }
+      } catch (e) {
+        // continue
+      }
+
+      // 2) GitHub snapshot from Lendingdepositrates (hourly refresh, same SQL query).
       try {
         const ghRes = await fetch(LABS_LEND_GITHUB_JSON + '?t=' + Date.now(), {
           method: 'GET',
@@ -1379,24 +1395,9 @@
         // continue
       }
 
-      const base = lendingApiBase();
-
-      try {
-        const embedRes = await fetch(base + '/api/embed/top-borrow-stablecoins', {
-          method: 'GET',
-          headers: headers
-        });
-        const embedPayload = await embedRes.json();
-        if (embedPayload && embedPayload.ok && Array.isArray(embedPayload.items) && embedPayload.items.length) {
-          return mapLabsLendRows(embedPayload.items);
-        }
-      } catch (e) {
-        // continue
-      }
-
+      // 3) Labs Lend API (if VIP session exists in browser).
       const token = getVipAuthToken();
       if (token) headers.Authorization = 'Bearer ' + token;
-
       try {
         const response = await fetch(base + '/api/rates?' + labsLendBorrowQuery(3).toString(), {
           method: 'GET',
