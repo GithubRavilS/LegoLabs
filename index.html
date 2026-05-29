@@ -601,18 +601,8 @@
       color: white;
     }
   </style>
-  <link rel="stylesheet" href="https://cry-Maden008.pythonanywhere.com/vip-static/vip-auth.css" />
 </head>
 <body>
-  <div id="vipAuthGate" class="vip-auth-gate" role="dialog" aria-modal="true">
-    <div class="vip-auth-gate-inner">
-      <h2>Доступ DeFi Labs VIP — Lego Labs</h2>
-      <p>Пароль из Telegram-бота: DeFi Labs VIP → «Получить пароль». Одна строка NAV:… для всех сайтов экосистемы.</p>
-      <div class="vip-auth-err" id="vipAuthErr"></div>
-      <input type="password" class="vip-auth-input" id="vipAuthInput" autocomplete="current-password" placeholder="NAV:… целиком" />
-      <button type="button" class="vip-auth-submit" id="vipAuthSubmit">Войти</button>
-    </div>
-  </div>
   <div class="lang-switcher" role="group" aria-label="Language">
     <button type="button" class="lang-btn active" data-lang="en">EN</button>
     <button type="button" class="lang-btn" data-lang="ru">RU</button>
@@ -1032,8 +1022,30 @@
     function parseApy(raw) {
       const n = Number(raw);
       if (!Number.isFinite(n)) return 0;
-      // Navigator API already returns APY in percent units.
+      // Navigator feed mixes formats: 0.21 (=21%) and 27.5 (=27.5%).
+      if (n > 0 && n < 1.5) return n * 100;
       return n;
+    }
+
+    function isStablecoinSymbol(symbol) {
+      const sym = String(symbol || '').trim().toUpperCase();
+      if (!sym) return false;
+      return /^(USDC|USDT|DAI|FRAX|LUSD|GHO|USDE|SUSDE|RLUSD|CRVUSD|USD[TE]?|USD₮|USDM|SUSD)/.test(sym);
+    }
+
+    function parseRatePercent(raw) {
+      const n = Number(raw);
+      if (!Number.isFinite(n)) return null;
+      if (n > 0 && n < 1.5) return n * 100;
+      return n;
+    }
+
+    function getVipAuthToken() {
+      try {
+        return localStorage.getItem('defilabs_vip_jwt') || '';
+      } catch (e) {
+        return '';
+      }
     }
 
     function getTopPools(categoryId, limit = 3) {
@@ -1310,18 +1322,91 @@
       rows.forEach(function(row) {
         const li = document.createElement('li');
         const url = row.position_url || '#';
-        const apy = Number(row.borrow_apy);
-        const apyTxt = Number.isFinite(apy) ? apy.toFixed(2) + '%' : '—';
+        const apyNorm = parseRatePercent(row.borrow_apy);
+        const apyTxt = apyNorm == null ? '—' : apyNorm.toFixed(2) + '%';
         const platform = formatPlatformName(row.platform);
         const chain = row.chain || '-';
         const token = row.token_symbol || '-';
         li.innerHTML =
           '<a class="pool-link" href="' + url + '" target="_blank" rel="noopener noreferrer">' +
           platform + ' · ' + chain + ' · ' + token + '</a><br>' +
-          t('lendingBorrowApy') + ': ' + apyTxt + ' · ' +
-          (currentLang === 'ru' ? 'Сумма займа' : 'Borrow amount') + ': ' + formatCurrency(borrowAmount);
+          t('lendingBorrowApy') + ': ' + apyTxt;
         list.appendChild(li);
       });
+    }
+
+    async function fetchBorrowRatesFromAave() {
+      const chainIds = [1, 8453, 42161, 10, 137, 56, 42220, 100, 43114];
+      const query = `
+        query ($chainIds: [ChainId!]!) {
+          markets(request: { chainIds: $chainIds }) {
+            chain { name }
+            reserves {
+              isFrozen
+              isPaused
+              underlyingToken { symbol }
+              borrowInfo { apy { formatted value } borrowingState borrowCapReached }
+            }
+          }
+        }
+      `;
+      const response = await fetch('https://api.v3.aave.com/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: query, variables: { chainIds: chainIds } })
+      });
+      const payload = await response.json();
+      if (!payload || payload.errors) return [];
+
+      const rows = [];
+      (payload.data && payload.data.markets || []).forEach(function(market) {
+        const chain = (market.chain && market.chain.name) || '-';
+        (market.reserves || []).forEach(function(res) {
+          if (res.isFrozen || res.isPaused) return;
+          const sym = res.underlyingToken && res.underlyingToken.symbol;
+          if (!isStablecoinSymbol(sym)) return;
+          const borrowInfo = res.borrowInfo || {};
+          if (borrowInfo.borrowingState !== 'ENABLED' || borrowInfo.borrowCapReached) return;
+          const borrowApy = parseRatePercent(
+            borrowInfo.apy && (borrowInfo.apy.formatted != null ? borrowInfo.apy.formatted : borrowInfo.apy.value)
+          );
+          if (borrowApy == null || borrowApy < 0.01) return;
+          rows.push({
+            platform: 'aave-v3',
+            chain: chain,
+            token_symbol: sym,
+            borrow_apy: borrowApy,
+            position_url: 'https://app.aave.com/'
+          });
+        });
+      });
+
+      rows.sort((a, b) => a.borrow_apy - b.borrow_apy);
+      return rows.slice(0, 3);
+    }
+
+    async function fetchBorrowRatesFromLabsLend() {
+      const token = getVipAuthToken();
+      const headers = { 'Accept': 'application/json' };
+      if (token) headers.Authorization = 'Bearer ' + token;
+
+      const q = new URLSearchParams({
+        mode: 'borrow',
+        sort_by: 'borrow_apy',
+        order: 'asc',
+        limit: '3',
+        token_family: 'stablecoin'
+      });
+      const response = await fetch(lendingApiBase() + '/api/rates?' + q.toString(), {
+        method: 'GET',
+        credentials: 'include',
+        headers: headers
+      });
+      const payload = await response.json();
+      if (payload && payload.ok && Array.isArray(payload.items) && payload.items.length) {
+        return payload.items;
+      }
+      return [];
     }
 
     function getExpectedAnnualRate(params) {
@@ -1972,20 +2057,10 @@
     async function loadLendingRates() {
       lendingLoadError = false;
       try {
-        const q = new URLSearchParams({
-          mode: 'borrow',
-          sort_by: 'borrow_apy',
-          order: 'asc',
-          limit: '3',
-          token_family: 'stablecoin'
-        });
-        const response = await fetch(lendingApiBase() + '/api/rates?' + q.toString(), {
-          method: 'GET',
-          credentials: 'include'
-        });
-        const payload = await response.json();
-        if (payload && payload.ok && Array.isArray(payload.items) && payload.items.length) {
-          lendingRates = payload.items;
+        let items = await fetchBorrowRatesFromLabsLend();
+        if (!items.length) items = await fetchBorrowRatesFromAave();
+        if (items.length) {
+          lendingRates = items;
         } else {
           lendingRates = fallbackLendingRates.slice();
           lendingLoadError = true;
@@ -2090,15 +2165,8 @@
       setInterval(loadNavigatorData, 5 * 60 * 1000);
       setInterval(loadLendingRates, 5 * 60 * 1000);
     }
-  </script>
-  <script src="https://cry-Maden008.pythonanywhere.com/vip-static/vip-auth-client.js"></script>
-  <script>
-    window.VIP_AUTH_BACKEND = 'https://cry-Maden008.pythonanywhere.com';
-    DeFiLabsVipAuth.init({
-      hostsRequireAuth: ['lego-labs.vercel.app', 'localhost', '127.0.0.1'],
-      protectFetch: true,
-      onAuthenticated: bootLegoLabs
-    });
+    // Public simulator: no VIP password gate; data feeds are public (Navigator + Aave) with optional Labs Lend session.
+    bootLegoLabs();
   </script>
 </body>
 </html>
