@@ -601,8 +601,19 @@
       color: white;
     }
   </style>
+  <link rel="stylesheet" href="https://cry-maden008.pythonanywhere.com/vip-static/vip-auth.css" />
 </head>
 <body>
+  <div id="vipAuthGate" class="vip-auth-gate" role="dialog" aria-modal="true">
+    <div class="vip-auth-gate-inner">
+      <h2>Доступ DeFi Labs VIP</h2>
+      <p>Введите пароль из Telegram-бота (DeFi Labs VIP → «Получить пароль»). Один пароль открывает Navigator, Labs Lend, Portfolio, Stable Yield и Lego Labs.</p>
+      <div class="vip-auth-err" id="vipAuthErr"></div>
+      <input type="password" class="vip-auth-input" id="vipAuthInput" autocomplete="current-password" placeholder="NAV:…" />
+      <button type="button" class="vip-auth-submit" id="vipAuthSubmit">Войти</button>
+    </div>
+  </div>
+
   <div class="lang-switcher" role="group" aria-label="Language">
     <button type="button" class="lang-btn active" data-lang="en">EN</button>
     <button type="button" class="lang-btn" data-lang="ru">RU</button>
@@ -808,6 +819,7 @@
     </div>
   </div>
 
+  <script src="https://cry-maden008.pythonanywhere.com/vip-static/vip-auth-client.js"></script>
   <script>
     // === i18n: EN / RU (no FR) ===
     const translations = {
@@ -2152,8 +2164,8 @@
       setInterval(loadNavigatorData, 5 * 60 * 1000);
       setInterval(loadLendingRates, 5 * 60 * 1000);
     }
-    // Public simulator: no VIP password gate; data feeds are public (Navigator + Aave) with optional Labs Lend session.
-    bootLegoLabs();
+    window.VIP_AUTH_BACKEND = "https://cry-maden008.pythonanywhere.com";
+    DeFiLabsVipAuth.init({ onAuthenticated: bootLegoLabs });
   </script>
 </body>
 </html>
