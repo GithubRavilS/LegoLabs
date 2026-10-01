@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/strategy-map", "destination": "/strategy-map.html" },
+    { "source": "/guide", "destination": "/strategy-map.html" }
+  ]
+}
